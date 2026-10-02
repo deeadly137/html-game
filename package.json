@@ -1,0 +1,23 @@
+{
+  "name": "miscigenacao-linha-do-tempo",
+  "version": "1.0.0",
+  "description": "Jogo de tabuleiro educativo sobre a miscigenação no Brasil: dado, cartas de Sorte e Reverse, perguntas e pontos culturais.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "play": "node cli.js",
+    "test": "node --test"
+  },
+  "keywords": [
+    "jogo",
+    "tabuleiro",
+    "educativo",
+    "miscigenacao",
+    "brasil",
+    "historia"
+  ]
+}
