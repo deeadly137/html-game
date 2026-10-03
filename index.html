@@ -2,35 +2,27 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#f2e8d5" />
   <title>Miscigenação: Linha do Tempo</title>
-  <meta name="description" content="Jogo de tabuleiro educativo sobre a miscigenação no Brasil: dado, cartas de Sorte e Reverse, perguntas e pontos culturais." />
+  <meta name="description" content="Jogo de tabuleiro sobre a miscigenação no Brasil: percorra a linha do tempo, responda perguntas e colecione elementos culturais." />
   <link rel="stylesheet" href="style.css" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎲</text></svg>" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23f2e8d5'/><circle cx='16' cy='16' r='8' fill='none' stroke='%2321201c' stroke-width='3'/></svg>" />
 </head>
 <body>
-  <header class="topbar">
-    <h1><span class="logo">🎲</span> Miscigenação: Linha do Tempo</h1>
-    <div class="topbar-actions">
-      <button id="btn-rules" class="btn ghost" type="button">📜 Regras</button>
-      <button id="btn-new" class="btn ghost" type="button">🔄 Nova partida</button>
-    </div>
-  </header>
 
   <!-- ============================ SETUP ============================ -->
   <main id="screen-setup" class="screen active">
-    <section class="setup card">
-      <h2>Explorando a miscigenação no Brasil</h2>
-      <p class="lede">
-        Percorra a linha do tempo, do período indígena ao Brasil atual. Jogue o dado,
-        responda perguntas para somar <strong>pontos culturais</strong> e enfrente
-        cartas de <strong>Sorte</strong> e <strong>Reverse</strong>. Errar uma pergunta
-        faz você <em>voltar para a casa onde estava antes de rolar</em>.
+    <section class="setup">
+      <h1 class="setup-title">Miscigenação<span>linha do tempo do Brasil</span></h1>
+      <p class="setup-lede">
+        Um jogo de tabuleiro sobre a mistura de povos que formou o Brasil. Percorra o
+        caminho, jogue o dado, responda perguntas e colecione elementos culturais.
       </p>
 
-      <div class="field-row">
+      <div class="setup-row">
         <label class="field">
-          <span>Número de jogadores</span>
+          <span>Jogadores</span>
           <select id="player-count">
             <option value="1">1 jogador</option>
             <option value="2" selected>2 jogadores</option>
@@ -39,134 +31,144 @@
           </select>
         </label>
         <label class="field">
-          <span>Semente (opcional)</span>
-          <input id="seed-input" type="number" placeholder="ex.: 2026" />
+          <span>Mundo (semente)</span>
+          <input id="seed-input" type="number" placeholder="aleatório" />
         </label>
       </div>
 
       <div id="player-fields" class="player-fields"></div>
 
       <div class="setup-actions">
-        <button id="btn-start" class="btn primary" type="button">🚩 Começar jornada</button>
-        <span class="hint">Dica: cada jogador representa uma raiz cultural.</span>
+        <button id="btn-start" class="btn btn-ink" type="button">Começar a viagem</button>
+        <button id="btn-rules" class="btn btn-line" type="button">Como jogar</button>
       </div>
-    </section>
 
-    <section class="legend card">
-      <h2>As 7 etapas da linha do tempo</h2>
-      <ol id="timeline-list" class="timeline-list"></ol>
+      <button id="btn-help-toggle" class="setup-more" type="button">ver as 7 eras do percurso ↓</button>
+      <ol id="timeline-list" class="timeline-list" hidden></ol>
     </section>
   </main>
 
   <!-- ============================ GAME ============================= -->
-  <main id="screen-game" class="screen">
-    <section class="board-panel">
-      <div class="board-head">
-        <h2 id="era-title">Linha do tempo</h2>
-        <span id="era-period" class="muted"></span>
-      </div>
-      <div id="board" class="board" aria-label="Tabuleiro"></div>
-    </section>
+  <div id="screen-game" class="screen">
+    <div id="stage">
+      <!-- o mundo anda; a câmera só desliza -->
+      <div id="world">
+        <div class="parallax px-sky" id="px-sky"></div>
+        <div class="parallax px-far" id="px-far"></div>
 
-    <aside class="panel panel-right">
-      <div class="card dice-card">
-        <div id="current-player" class="current-player">—</div>
-        <button id="btn-roll" class="btn primary big" type="button">🎲 Rolar o dado</button>
-        <div id="die-display" class="die" aria-live="polite">?</div>
+        <svg id="trail" aria-hidden="true">
+          <path id="trail-shadow" class="trail-shadow"></path>
+          <path id="trail-path" class="trail-path"></path>
+          <path id="trail-dots" class="trail-dots"></path>
+        </svg>
+
+        <div id="houses" class="houses"></div>
+        <div id="pawns" class="pawns"></div>
+        <div class="parallax px-fore" id="px-fore"></div>
       </div>
-      <div class="card log-card">
+
+      <!-- o dado é lançado no mapa, perto da peça da vez -->
+      <div id="die" class="die" role="button" tabindex="0" aria-label="Rolar o dado"></div>
+    </div>
+
+    <!-- barra de status: quem é a vez e quantas casas -->
+    <div class="turnbar">
+      <span id="turn-pawn" class="turnbar-pawn"></span>
+      <span id="turn-text" class="turnbar-text">—</span>
+    </div>
+
+    <!-- HUD mínimo: só o essencial -->
+    <header class="hud">
+      <span class="hud-title">Miscigenação</span>
+      <div class="hud-actions">
+        <button id="btn-recenter" class="btn btn-mini" type="button" title="Voltar o foco para a peça (espaço)">Focar peça</button>
+        <button id="btn-log" class="btn btn-mini" type="button">Diário</button>
+        <button id="btn-new" class="btn btn-mini" type="button">Nova</button>
+      </div>
+    </header>
+
+    <!-- rodapé: fichas dos jogadores, baralhos e minimapa -->
+    <footer class="dock">
+      <ul id="chips" class="chips"></ul>
+
+      <div class="dock-side">
+        <div id="decks" class="decks" aria-label="Baralhos"></div>
+        <div id="minimap" class="minimap" aria-label="Mapa do percurso"></div>
+      </div>
+    </footer>
+
+    <div class="hint-bar">
+      <span>arraste, use a roda ou as setas para olhar o percurso · espaço volta o foco</span>
+    </div>
+
+    <!-- gaveta do diário (sob demanda) -->
+    <aside id="drawer" class="drawer" hidden>
+      <header class="drawer-head">
         <h3>Diário da jornada</h3>
-        <ul id="log-list" class="log-list" aria-live="polite"></ul>
-      </div>
+        <button id="btn-drawer-close" class="btn btn-mini" type="button" aria-label="Fechar">✕</button>
+      </header>
+      <ul id="log-list" class="log-list"></ul>
     </aside>
+  </div>
 
-    <aside class="panel panel-left">
-      <div class="card scores">
-        <h3>Placar</h3>
-        <ul id="score-list" class="score-list"></ul>
+  <!-- ================= CARTA PUXADA (vira na tela) ================= -->
+  <div id="card-stage" class="card-stage" hidden>
+    <div id="card-flip" class="card-flip">
+      <div class="card-side card-back">
+        <span class="card-back-mark">M</span>
       </div>
+      <div class="card-side card-front" id="card-front">
+        <span id="card-badge" class="card-kind">Sorte</span>
+        <h3 id="card-title"></h3>
+        <p id="card-text"></p>
+        <button id="btn-card-ok" class="btn btn-ink" type="button">Continuar</button>
+      </div>
+    </div>
+  </div>
 
-      <!-- ==================== MESA DE CARTAS ==================== -->
-      <section class="card card-tray" aria-label="Mesa de cartas">
-        <h3>Mesa de cartas</h3>
-        <div class="tray-decks">
-          <div class="deck deck-sorte" id="deck-sorte">
-            <span class="deck-back">🍀</span>
-            <span class="deck-meta">
-              <strong>Sorte</strong>
-              <span class="deck-count" id="count-sorte">–</span>
-            </span>
-          </div>
-          <div class="deck deck-reverse" id="deck-reverse">
-            <span class="deck-back">🔄</span>
-            <span class="deck-meta">
-              <strong>Reverse</strong>
-              <span class="deck-count" id="count-reverse">–</span>
-            </span>
-          </div>
-          <div class="deck deck-pergunta" id="deck-pergunta">
-            <span class="deck-back">❓</span>
-            <span class="deck-meta">
-              <strong>Perguntas</strong>
-              <span class="deck-count" id="count-pergunta">–</span>
-            </span>
-          </div>
-        </div>
-
-        <div class="drawn-card drawn-empty" id="drawn-card">
-          <span class="drawn-label">Na mesa</span>
-          <p class="drawn-text" id="drawn-text">As cartas que você puxar aparecem aqui.</p>
-        </div>
-      </section>
-    </aside>
-  </main>
-
-  <!-- ======================= QUESTION MODAL ======================== -->
-  <div id="question-modal" class="modal-backdrop" hidden>
-    <div class="modal card">
-      <div class="modal-badge">❓ Casa de Pergunta</div>
+  <!-- ========================== PERGUNTA =========================== -->
+  <div id="question-modal" class="overlay" hidden>
+    <div class="panel panel-question">
+      <span class="panel-tab">Casa de pergunta</span>
       <p id="question-text" class="question-text"></p>
       <div id="question-options" class="options"></div>
-      <p class="modal-note">Errar faz você voltar para a casa anterior ao avanço.</p>
+
+      <div id="question-fact" class="fact" hidden>
+        <span class="fact-label">Você sabia?</span>
+        <p id="fact-text" class="fact-text"></p>
+      </div>
+
+      <p id="question-note" class="panel-note">Errar faz você voltar para a casa onde estava.</p>
+      <button id="btn-question-ok" class="btn btn-ink" type="button" hidden>Continuar</button>
     </div>
   </div>
 
-  <!-- ========================= CARD MODAL ========================== -->
-  <div id="card-modal" class="modal-backdrop" hidden>
-    <div id="card-box" class="modal card card-sorte">
-      <div id="card-badge" class="modal-badge">🍀 Carta</div>
-      <h3 id="card-title"></h3>
-      <p id="card-text" class="card-text"></p>
-      <button id="btn-card-ok" class="btn primary" type="button">Continuar</button>
-    </div>
-  </div>
-
-  <!-- ======================== RULES MODAL ========================== -->
-  <div id="rules-modal" class="modal-backdrop" hidden>
-    <div class="modal card wide">
-      <div class="modal-badge">📜 Regras</div>
-      <h3>Como jogar</h3>
+  <!-- =========================== REGRAS ============================ -->
+  <div id="rules-modal" class="overlay" hidden>
+    <div class="panel panel-rules">
+      <span class="panel-tab">Como jogar</span>
       <ol class="rules-list">
-        <li><strong>Escolha do peão:</strong> cada jogador assume uma raiz cultural (indígena, africano, europeu, asiático).</li>
-        <li><strong>Jogar o dado:</strong> avance o número de casas sorteado.</li>
-        <li><strong>Casas especiais:</strong> caia em <em>Sorte</em> ou <em>Reverse</em> e puxe uma carta; caia em <em>Pergunta</em> e responda.</li>
-        <li><strong>Erro:</strong> se errar a pergunta, você volta para a casa onde estava antes de avançar.</li>
-        <li><strong>Pontos culturais:</strong> acertar perguntas e boas cartas rendem pontos; o bônus final também conta.</li>
-        <li><strong>Vitória:</strong> quem chega ao Brasil Atual com o maior número de pontos culturais vence.</li>
+        <li>Jogue o dado e ande pelo caminho.</li>
+        <li>Caindo numa <strong>pergunta</strong>, responda: acertar dá pontos culturais.</li>
+        <li>Errar faz você <strong>voltar para a casa anterior</strong>.</li>
+        <li>As cartas de <strong>Sorte</strong> e <strong>Reverse</strong> mexem com a viagem.
+          Quem enfrenta o preconceito avança — a vítima nunca é punida.</li>
+        <li>Depois de cada resposta aparece um <strong>“você sabia?”</strong>.</li>
+        <li>Quem chega ao Brasil Atual com mais pontos culturais vence.</li>
       </ol>
-      <button id="btn-rules-close" class="btn primary" type="button">Entendi</button>
+      <button id="btn-rules-close" class="btn btn-ink" type="button">Entendi</button>
     </div>
   </div>
 
-  <!-- ======================= WINNER OVERLAY ======================== -->
-  <div id="winner-modal" class="modal-backdrop" hidden>
-    <div class="modal card winner">
-      <div class="modal-badge">🏆 Fim de jogo</div>
+  <!-- ========================== VENCEDOR =========================== -->
+  <div id="winner-modal" class="overlay" hidden>
+    <div class="panel panel-winner">
+      <span class="panel-tab">Fim da viagem</span>
       <h3 id="winner-name"></h3>
       <ol id="ranking-list" class="ranking-list"></ol>
-      <div class="winner-actions">
-        <button id="btn-again" class="btn primary" type="button">🔁 Jogar de novo</button>
-        <button id="btn-winner-close" class="btn ghost" type="button">Ver tabuleiro</button>
+      <div class="panel-actions">
+        <button id="btn-again" class="btn btn-ink" type="button">Jogar de novo</button>
+        <button id="btn-winner-close" class="btn btn-line" type="button">Ver o mapa</button>
       </div>
     </div>
   </div>

@@ -55,6 +55,13 @@ const C = {
   red: '\x1b[31m',
 };
 
+/** Marcador do peão: um círculo na cor do jogador (o CLI é texto puro). */
+function pawnMark(pawnId) {
+  const cor = PAWNS[pawnId]?.color || '#ffffff';
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(cor.slice(i, i + 2), 16));
+  return `\x1b[38;2;${r};${g};${b}m●\x1b[0m`;
+}
+
 /* ------------------------------------------------------------------ */
 /* Impressão do tabuleiro e placar                                     */
 /* ------------------------------------------------------------------ */
@@ -62,7 +69,7 @@ function renderBoard(game) {
   const byPosition = new Map();
   game.players.forEach((p) => {
     if (!byPosition.has(p.position)) byPosition.set(p.position, []);
-    byPosition.get(p.position).push(PAWNS[p.pawn].emoji);
+    byPosition.get(p.position).push(pawnMark(p.pawn));
   });
 
   const lines = [`${C.bold}Linha do tempo da miscigenação no Brasil${C.reset}`];
@@ -87,7 +94,7 @@ function renderPlayers(game) {
     .map((p, i) => {
       const pawn = PAWNS[p.pawn];
       const turn = i === game.currentPlayerIndex && !game.isFinished ? `${C.yellow}◀ vez${C.reset}` : '';
-      return `  ${pawn.emoji} ${p.name} (${pawn.label}) — casa ${String(p.position).padStart(2, ' ')} | ${p.points} ponto(s) cultural(is) ${turn}`;
+      return `  ${pawnMark(p.pawn)} ${p.name} (${pawn.label}) — casa ${String(p.position).padStart(2, ' ')} | ${p.points} ponto(s) cultural(is) ${turn}`;
     })
     .join('\n');
 }
@@ -95,7 +102,7 @@ function renderPlayers(game) {
 function renderStatus(game) {
   const space = BOARD[game.currentPlayer.position];
   const era = eraById(space.era);
-  const eraText = era ? `${era.emoji} ${era.title} (${era.period})` : space.eraTitle;
+  const eraText = era ? `${era.title} (${era.period})` : space.eraTitle;
   return ['', `${C.bold}--- Placar ---${C.reset}`, renderPlayers(game), `  ${C.dim}Etapa atual: ${eraText}${C.reset}`, ''].join('\n');
 }
 
@@ -145,7 +152,7 @@ async function runInteractive(game, rl) {
   while (!game.isFinished) {
     const p = game.currentPlayer;
     console.log(renderStatus(game));
-    console.log(`${C.bold}Vez de ${PAWNS[p.pawn].emoji} ${p.name}.${C.reset}`);
+    console.log(`${C.bold}Vez de ${pawnMark(p.pawn)} ${p.name}.${C.reset}`);
     await rl.question(`${C.cyan}Pressione ENTER para rolar o dado...${C.reset}`);
     const events = game.roll();
     console.log(game.log[game.log.length - 1].text);

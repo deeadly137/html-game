@@ -96,10 +96,10 @@ test('createPlayers distribui peões sem repetir e gera nomes padrão', () => {
 });
 
 test('createPlayers usa o peão informado quando válido', () => {
-  const [p] = createPlayers([{ name: 'Ana', pawn: 'asiatico' }]);
+  const [p] = createPlayers([{ name: 'Ana', pawn: 'azul' }]);
   assert.equal(p.name, 'Ana');
-  assert.equal(p.pawn, 'asiatico');
-  assert.ok(PAWNS.asiatico);
+  assert.equal(p.pawn, 'azul');
+  assert.ok(PAWNS.azul);
 });
 
 test('createDefaultPlayers respeita limites de 1..4 jogadores', () => {
@@ -213,10 +213,11 @@ test('carta de Sorte de pontos culturais soma pontos', () => {
   assert.equal(game.players[0].position, 3);
 });
 
-test('carta Reverse pode recuar casas e ainda dar pontos', () => {
+test('carta com recuo de casas: o motor suporta (usado por cartas futuras)', () => {
   const game = newGame();
   game.players[0].position = 10;
-  game.reverseDeck.pile = [REVERSE_CARDS.find((c) => c.id === 'r07')]; // volte 2, ganhe 2
+  // O baralho atual não recua ninguém; o motor, sim — garantimos a capacidade.
+  game.reverseDeck.pile = [{ id: 'teste', title: 'Teste', text: '', effects: [{ move: -2 }, { points: 2 }] }];
   game.roll(5); // casa 15 = reverse
   assert.equal(game.players[0].position, 13, 'casa 15 - 2 = 13');
   assert.equal(game.players[0].points, 2);
@@ -224,7 +225,7 @@ test('carta Reverse pode recuar casas e ainda dar pontos', () => {
 
 test('carta Reverse: passe o próximo turno (skipTurns)', () => {
   const game = newGame();
-  game.reverseDeck.pile = [REVERSE_CARDS.find((c) => c.id === 'r01')]; // skip 1
+  game.reverseDeck.pile = [REVERSE_CARDS.find((c) => c.id === 'r12')]; // estuda 1 turno
   game.roll(7); // casa 7 = reverse
   assert.equal(game.players[0].skipTurns, 1);
   assert.equal(game.currentPlayerIndex, 1, 'turno passou para Bia');
@@ -237,7 +238,7 @@ test('carta Reverse: troca de lugar com quem está na frente', () => {
   const game = newGame();
   game.players[0].position = 0;
   game.players[1].position = 12;
-  game.reverseDeck.pile = [REVERSE_CARDS.find((c) => c.id === 'r05')]; // swapWithLeader
+  game.reverseDeck.pile = [REVERSE_CARDS.find((c) => c.id === 'r13')]; // swapWithLeader
   game.roll(7); // casa 7 = reverse
   assert.equal(game.players[0].position, 12, 'Ana assume a liderança');
   assert.equal(game.players[1].position, 7, 'Bia vai para a posição antiga da Ana');
@@ -351,7 +352,7 @@ test('getDeckInfo informa quantas cartas restam em cada baralho', () => {
   const info = game.getDeckInfo();
 
   assert.deepEqual(info.sorte, { remaining: 12, total: 12 });
-  assert.deepEqual(info.reverse, { remaining: 12, total: 12 });
+  assert.deepEqual(info.reverse, { remaining: 13, total: 13 });
   assert.deepEqual(info.pergunta, { remaining: 21, total: 21 });
 
   // O estado exposto à GUI também traz os baralhos.
@@ -362,7 +363,7 @@ test('cada carta de Sorte puxada reduz o monte de Sorte', () => {
   const game = newGame();
   game.roll(3); // casa 3 = Casa de Sorte
   assert.equal(game.getDeckInfo().sorte.remaining, 11, 'puxou 1 carta de Sorte');
-  assert.equal(game.getDeckInfo().reverse.remaining, 12, 'o baralho de Reverse não foi tocado');
+  assert.equal(game.getDeckInfo().reverse.remaining, 13, 'o baralho de Reverse não foi tocado');
 });
 
 test('cair numa Casa de Pergunta reduz o monte de Perguntas', () => {

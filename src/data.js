@@ -18,10 +18,10 @@
 /* Peões — cada jogador escolhe uma raiz cultural                      */
 /* ------------------------------------------------------------------ */
 export const PAWNS = Object.freeze({
-  indigena: { id: 'indigena', label: 'Indígena', emoji: '🪶', color: '#2f6b3f' },
-  africano: { id: 'africano', label: 'Africano', emoji: '🥁', color: '#8a4b1f' },
-  europeu: { id: 'europeu', label: 'Europeu', emoji: '🏰', color: '#2b4a7d' },
-  asiatico: { id: 'asiatico', label: 'Asiático', emoji: '🏮', color: '#b8302e' },
+  verde: { id: 'verde', label: 'Verde', color: '#2f7d4f' },
+  vinho: { id: 'vinho', label: 'Vinho', color: '#9c2f2f' },
+  azul: { id: 'azul', label: 'Azul', color: '#2b5f9e' },
+  ambar: { id: 'ambar', label: 'Âmbar', color: '#c9873a' },
 });
 
 export const PAWN_KEYS = Object.keys(PAWNS);
@@ -35,7 +35,6 @@ export const ERAS = Object.freeze([
     title: 'Período Indígena',
     period: 'antes da colonização',
     color: '#2f6b3f',
-    emoji: '🪶',
     range: [1, 4],
   },
   {
@@ -43,7 +42,6 @@ export const ERAS = Object.freeze([
     title: 'Chegada dos Portugueses',
     period: '1500 – século XVI',
     color: '#2b4a7d',
-    emoji: '⛵',
     range: [5, 8],
   },
   {
@@ -51,7 +49,6 @@ export const ERAS = Object.freeze([
     title: 'Tráfico de Africanos Escravizados',
     period: 'século XVI – XIX',
     color: '#8a4b1f',
-    emoji: '⛓️',
     range: [9, 12],
   },
   {
@@ -59,7 +56,6 @@ export const ERAS = Object.freeze([
     title: 'Mestiçagem no Brasil Colônia',
     period: 'século XVII – XVIII',
     color: '#6b3f6e',
-    emoji: '🎨',
     range: [13, 16],
   },
   {
@@ -67,7 +63,6 @@ export const ERAS = Object.freeze([
     title: 'Abolição da Escravidão',
     period: '1871 – 1888',
     color: '#9c2f2f',
-    emoji: '🕊️',
     range: [17, 20],
   },
   {
@@ -75,7 +70,6 @@ export const ERAS = Object.freeze([
     title: 'Imigração Europeia e Asiática',
     period: 'século XIX – XX',
     color: '#a8760f',
-    emoji: '🚢',
     range: [21, 24],
   },
   {
@@ -83,7 +77,6 @@ export const ERAS = Object.freeze([
     title: 'Brasil Moderno e Diverso',
     period: 'século XX – XXI',
     color: '#1f6f63',
-    emoji: '🌎',
     range: [25, 28],
   },
 ]);
@@ -245,75 +238,81 @@ export const SORTE_CARDS = Object.freeze([
 export const REVERSE_CARDS = Object.freeze([
   {
     id: 'r01',
-    title: 'Discriminação',
-    text: 'Você sofreu discriminação. Reverse: devolva ao preconceituoso a necessidade de aprender. Passe o próximo turno refletindo.',
-    effects: [{ skipTurns: 1 }],
+    title: 'Discriminação presenciada',
+    text: 'Você viu alguém ser discriminado. Reverse: não fique em silêncio — fale, explique, chame a conversa para a reflexão. Avance 2 casas.',
+    effects: [{ move: 2 }],
   },
   {
     id: 'r02',
-    title: 'Estereótipos',
-    text: 'Estereótipos te atrapalham. Reverse: combata-os com conhecimento. Volte 1 casa, mas ganhe 1 ponto cultural.',
-    effects: [{ move: -1 }, { points: 1 }],
-  },
-  {
-    id: 'r03',
-    title: 'Sua história questionada',
-    text: 'Alguém duvidou da sua história. Reverse: mostre que a história é de todos. Volte 1 casa.',
-    effects: [{ move: -1 }],
-  },
-  {
-    id: 'r04',
-    title: 'Piada preconceituosa',
-    text: 'Você ouviu uma piada preconceituosa. Reverse: chame a conversa para a reflexão. Avance 1 casa como quem ensina pelo exemplo.',
-    effects: [{ move: 1 }],
-  },
-  {
-    id: 'r05',
-    title: 'Troca de lugar',
-    text: 'Um obstáculo tentou te barrar. Reverse: a diversidade é mais forte que a barreira. Troque de lugar com quem está na frente.',
-    effects: [{ swapWithLeader: true }],
-  },
-  {
-    id: 'r06',
-    title: 'Falta de informação',
-    text: 'A falta de informação gerou um conflito. Reverse: informe-se e inspire outros. Passe o próximo turno estudando.',
-    effects: [{ skipTurns: 1 }],
-  },
-  {
-    id: 'r07',
-    title: 'Intolerância religiosa',
-    text: 'Havia intolerância religiosa no bairro. Reverse: promova o diálogo. Volte 2 casas, mas ganhe 2 pontos culturais.',
-    effects: [{ move: -2 }, { points: 2 }],
-  },
-  {
-    id: 'r08',
-    title: 'Racismo estrutural',
-    text: 'O racismo estrutural dificultou seu caminho. Reverse: a luta por igualdade avança. Ganhe 1 ponto cultural.',
-    effects: [{ points: 1 }],
-  },
-  {
-    id: 'r09',
-    title: 'Subestimaram você',
-    text: 'Você foi subestimado por causa da sua origem. Reverse: prove seu valor. Ganhe 2 pontos culturais.',
+    title: 'Piada racista',
+    text: 'Alguém contou uma piada racista. Reverse: não ria. Mostre por que não tem graça. Ganhe 2 pontos culturais.',
     effects: [{ points: 2 }],
   },
   {
-    id: 'r10',
+    id: 'r03',
+    title: 'Sua origem questionada',
+    text: 'Colocaram em dúvida a sua origem. Reverse: responda com conhecimento, não com raiva. Avance 1 casa e ganhe 1 ponto cultural.',
+    effects: [{ move: 1 }, { points: 1 }],
+  },
+  {
+    id: 'r04',
+    title: 'Estereótipo no material',
+    text: 'Um livro traz um estereótipo sobre um povo. Reverse: aponte o erro e proponha a correção. Ganhe 2 pontos culturais e avance 1 casa.',
+    effects: [{ points: 2 }, { move: 1 }],
+  },
+  {
+    id: 'r05',
+    title: 'Intolerância religiosa',
+    text: 'Uma casa de religião de matriz africana foi atacada. Reverse: junte as comunidades e promova o diálogo. Avance 2 casas.',
+    effects: [{ move: 2 }],
+  },
+  {
+    id: 'r06',
     title: 'Apelido ofensivo',
-    text: 'Um apelido ofensivo te incomodou. Reverse: eduque quem o disse. Avance 1 casa como quem transforma dor em aprendizado.',
+    text: 'Usaram um apelido ofensivo com um colega. Reverse: converse com quem falou, sem constranger quem sofreu. Ganhe 1 ponto cultural.',
+    effects: [{ points: 1 }],
+  },
+  {
+    id: 'r07',
+    title: '"Cotas são privilégio?"',
+    text: 'Alguém disse que cotas são privilégio. Reverse: explique o que é reparação histórica. Ganhe 2 pontos culturais.',
+    effects: [{ points: 2 }],
+  },
+  {
+    id: 'r08',
+    title: 'Comentário preconceituoso',
+    text: 'Soltaram um comentário preconceituoso na sua frente. Reverse: não passe pano — interrompa e explique. Avance 1 casa.',
     effects: [{ move: 1 }],
   },
   {
+    id: 'r09',
+    title: 'Alguém foi excluído',
+    text: 'Um colega foi deixado de fora da festa por causa da origem. Reverse: convide e inclua. Avance 2 casas.',
+    effects: [{ move: 2 }],
+  },
+  {
+    id: 'r10',
+    title: 'Barrado no trabalho',
+    text: 'Uma pessoa foi recusada numa vaga por causa do cabelo. Reverse: apoie quem foi barrado e denuncie. Ganhe 2 pontos culturais.',
+    effects: [{ points: 2 }],
+  },
+  {
     id: 'r11',
-    title: 'Portas fechadas',
-    text: 'Portas se fecharam por causa do preconceito. Reverse: abra caminho pela educação. Volte 1 casa, mas ganhe 2 pontos culturais.',
-    effects: [{ move: -1 }, { points: 2 }],
+    title: 'Cultura tratada como exótica',
+    text: 'Chamaram a sua cultura de exótica. Reverse: mostre que a norma também é sua. Ganhe 1 ponto cultural e avance 1 casa.',
+    effects: [{ points: 1 }, { move: 1 }],
   },
   {
     id: 'r12',
-    title: 'Silenciamento',
-    text: 'Tentaram silenciar sua voz. Reverse: fale e escute. Ganhe 1 ponto cultural e avance 1 casa.',
-    effects: [{ points: 1 }, { move: 1 }],
+    title: 'Você ficou em silêncio',
+    text: 'Você viu o preconceito acontecer e não disse nada. Reverse: pare, estude e volte para falar. Passe o próximo turno estudando e ganhe 2 pontos culturais.',
+    effects: [{ skipTurns: 1 }, { points: 2 }],
+  },
+  {
+    id: 'r13',
+    title: 'Sua voz ganhou espaço',
+    text: 'Depois de tanto explicar, a roda finalmente te escutou. Reverse: a conversa mudou de lugar — troque de posição com quem está na frente.',
+    effects: [{ swapWithLeader: true }],
   },
 ]);
 
@@ -512,14 +511,104 @@ export const QUESTIONS = Object.freeze([
 /* Rótulos auxiliares para a interface                                 */
 /* ------------------------------------------------------------------ */
 export const SPACE_TYPE_INFO = Object.freeze({
-  start: { icon: '🚩', label: 'Partida' },
-  normal: { icon: '·', label: 'Caminho' },
-  sorte: { icon: '🍀', label: 'Carta de Sorte' },
-  reverse: { icon: '🔄', label: 'Carta Reverse' },
-  pergunta: { icon: '❓', label: 'Pergunta' },
-  finish: { icon: '🏁', label: 'Brasil Atual' },
+  start: { icon: '◆', label: 'Partida' },
+  normal: { icon: '', label: 'Caminho' },
+  sorte: { icon: '✦', label: 'Sorte' },
+  reverse: { icon: '↺', label: 'Reverse' },
+  pergunta: { icon: '?', label: 'Pergunta' },
+  finish: { icon: '★', label: 'Brasil Atual' },
 });
 
 export function eraById(id) {
   return ERA_BY_ID[id] || null;
 }
+
+/* ------------------------------------------------------------------ */
+/* "Você sabia?" — curiosidade mostrada DEPOIS de responder            */
+/* É o que transforma o acerto/erro em aprendizado.                    */
+/* ------------------------------------------------------------------ */
+export const FACTS = Object.freeze({
+  q01: 'Mais de 250 povos indígenas vivem hoje no Brasil, falando cerca de 170 línguas. Eles já estavam aqui há milhares de anos antes de 1500.',
+  q02: "'Mandioca', 'caju', 'pipoca', 'abacaxi' e 'tapioca' vêm do tupi. 'Ipanema', 'Ipiranga' e 'Copacabana' também são nomes de origem indígena.",
+  q03: 'A mandioca é cultivada há mais de 4 mil anos na Amazônia. O Brasil é um dos centros de origem da planta, que hoje alimenta o mundo inteiro.',
+  q04: 'A frota de Cabral tinha 13 embarcações e cerca de 1.500 pessoas. Era uma expedição rumo às Índias que aportou na atual Bahia em 22 de abril de 1500.',
+  q05: 'Salvador foi capital de 1549 a 1763. Depois a capital passou ao Rio de Janeiro e, em 1960, a Brasília.',
+  q06: 'A mistura no Brasil começou de forma violenta, imposta pela colonização — e ao mesmo tempo criou línguas, comidas e religiões que não existiam antes.',
+  q07: "Povos como banto, iorubá e fon foram trazidos à força. Suas línguas moldaram o português do Brasil: 'dendê', 'caçamba', 'moleque' e 'samba' vêm do africano.",
+  q08: 'Quilombo era comunidade de pessoas que fugiam da escravidão. O dos Palmares resistiu quase 100 anos e chegou a reunir milhares de pessoas.',
+  q09: 'Zumbi nasceu livre em Palmares, foi capturado na infância e conseguiu voltar. Morreu em 20 de novembro de 1695 — data do Dia da Consciência Negra.',
+  q10: "A palavra vem do latim 'miscere' (misturar). Aqui a mistura se deu entre povos indígenas, africanos, europeus, asiáticos e também árabes.",
+  q11: 'A feijoada junta o feijão (América), a carne suína (Europa) e técnicas africanas. O prato conta a história do país em uma única travessa.',
+  q12: 'No sincretismo, santos católicos foram associados a orixás — como Iemanjá e Nossa Senhora dos Navegantes — para manter tradições africanas sob perseguição.',
+  q13: 'A Lei Áurea foi assinada em 13 de maio de 1888. O Brasil foi o último país das Américas a abolir a escravidão.',
+  q14: 'A lei não previu terra, escola nem indenização. Sem reparação, a população negra foi deixada à margem — e esse efeito chega até hoje.',
+  q15: 'A Lei do Ventre Livre (1871) libertou os filhos, mas não as mães. Foi uma abolição lenta, feita "para inglês ver".',
+  q16: 'O navio Kasato Maru chegou em 18 de junho de 1908, com 165 famílias japonesas. Hoje o Brasil tem a maior comunidade japonesa fora do Japão.',
+  q17: 'Alemães chegaram desde 1824, no Rio Grande do Sul, e italianos desde 1875. Muitas cidades do Sul têm nomes e festas dessas origens.',
+  q18: 'A imigração foi financiada para substituir a mão de obra escravizada depois de 1850. Os imigrantes também enfrentaram contratos muito duros.',
+  q19: 'O 20 de novembro é feriado nacional desde 2023. O dia lembra Zumbi dos Palmares e é celebrado pelo movimento negro desde 1971.',
+  q20: 'São mais de 250 povos e cerca de 170 línguas indígenas, segundo o IBGE. Reconhecer essa diversidade é parte do que este jogo propõe.',
+  q21: 'A diversidade brasileira nasceu de encontros, mas também das desigualdades deixadas pela colonização. Entender os dois lados é entender o país.',
+});
+
+/* ------------------------------------------------------------------ */
+/* MUNDO HORIZONTAL                                                    */
+/* Cada era tem comprimento próprio e um cenário com 3 camadas.        */
+/* Paleta fechada, inspirada em xilogravura de cordel.                 */
+/* ------------------------------------------------------------------ */
+export const WORLD = Object.freeze({
+  pad: 540, // respiro antes da partida e depois da chegada, em px
+  top: 0.30, // faixa vertical do caminho (fração da altura da tela)
+  bottom: 0.74,
+  ripple: 0.032, // ondulação interna de cada era
+  rippleBumps: 2,
+  edge: 0.09, // margem das casas nas pontas de cada era (fração do comprimento)
+});
+
+/** Nível vertical (fração da altura) em cada divisa entre eras. */
+export const LEVELS = Object.freeze([0.6, 0.5, 0.63, 0.49, 0.62, 0.51, 0.64, 0.5, 0.6, 0.56]);
+
+/** Silhuetas provisórias: alturas 0..1 ao longo da faixa. */
+export const PROFILES = Object.freeze({
+  campo: [0.18, 0.24, 0.16, 0.27, 0.2, 0.3, 0.17, 0.25, 0.19, 0.28, 0.16, 0.23, 0.2, 0.26],
+  mata: [0.55, 1.0, 0.42, 0.92, 0.5, 1.0, 0.38, 0.88, 0.6, 0.96, 0.45, 1.0, 0.52, 0.9],
+  mar: [0.3, 0.42, 0.26, 0.5, 0.32, 0.44, 0.24, 0.58, 0.3, 0.46, 0.28, 0.52, 0.34, 0.4],
+  canavial: [0.5, 0.7, 0.46, 0.74, 0.52, 0.68, 0.44, 0.76, 0.48, 0.72, 0.5, 0.7, 0.46, 0.74],
+  casario: [0.4, 0.62, 0.38, 0.7, 0.42, 0.58, 0.36, 0.66, 0.44, 0.6, 0.4, 0.68, 0.38, 0.64],
+  porto: [0.24, 0.55, 0.3, 0.8, 0.26, 0.62, 0.32, 0.74, 0.28, 0.66, 0.24, 0.78, 0.3, 0.6],
+  cidade: [0.66, 0.44, 0.82, 0.4, 0.72, 0.5, 0.88, 0.42, 0.7, 0.48, 0.8, 0.46, 0.68, 0.52],
+  mosaico: [0.5, 0.66, 0.42, 0.78, 0.54, 0.7, 0.4, 0.82, 0.48, 0.72, 0.56, 0.68, 0.44, 0.76],
+});
+
+/**
+ * Um cenário por trecho do percurso.
+ *  length  — quanto o trecho ocupa no mundo (px)
+ *  sky     — gradiente do céu (2 paradas)
+ *  far     — cor das silhuetas do fundo
+ *  ink     — cor do contorno/primeiro plano
+ *  profile — silhueta de PROFILES
+ */
+export const SCENES = Object.freeze({
+  partida: { length: 560, sky: ['#f6ecd6', '#e4d4ad'], far: '#c2a878', ink: '#2a2118', profile: 'campo' },
+  indigena: { length: 1200, sky: ['#efe0c0', '#cbb488'], far: '#9c7b4a', ink: '#241d14', profile: 'mata' },
+  portugueses: { length: 1150, sky: ['#dbe4ea', '#a8bdcc'], far: '#5c7a94', ink: '#22262b', profile: 'mar' },
+  africanos: { length: 1600, sky: ['#f2ddbe', '#d8b483'], far: '#a8763c', ink: '#2b2013', profile: 'canavial' },
+  mesticagem: { length: 1150, sky: ['#f0e2cc', '#d3bb96'], far: '#a58f6b', ink: '#2a2318', profile: 'casario' },
+  abolicao: { length: 1150, sky: ['#f6e3cd', '#dcb9a0'], far: '#b5715a', ink: '#2c1f19', profile: 'campo' },
+  imigracao: { length: 1250, sky: ['#e2ddea', '#b3a9c8'], far: '#7a6f96', ink: '#241f2e', profile: 'porto' },
+  moderno: { length: 1200, sky: ['#dfe7ec', '#aebecd'], far: '#65798c', ink: '#1f2429', profile: 'cidade' },
+  chegada: { length: 640, sky: ['#f7ead2', '#e0c69a'], far: '#c08a3a', ink: '#2a2118', profile: 'mosaico' },
+});
+
+/** Trechos do percurso, na ordem. `era` casa com os ids de ERAS. */
+export const SEGMENTS = Object.freeze([
+  { id: 'partida', era: 'start' },
+  { id: 'indigena', era: 'indigena' },
+  { id: 'portugueses', era: 'portugueses' },
+  { id: 'africanos', era: 'africanos' },
+  { id: 'mesticagem', era: 'mesticagem' },
+  { id: 'abolicao', era: 'abolicao' },
+  { id: 'imigracao', era: 'imigracao' },
+  { id: 'moderno', era: 'moderno' },
+  { id: 'chegada', era: 'finish' },
+]);

@@ -178,10 +178,31 @@ class FakeElement {
     this._listeners.get(type).push(handler);
   }
 
-  dispatchEvent(type) {
+  removeEventListener(type, handler) {
+    const list = this._listeners.get(type);
+    if (list) this._listeners.set(type, list.filter((h) => h !== handler));
+  }
+
+  /** Como no DOM real, mas sem subir a árvore (o shim é plano). */
+  closest(selector) {
+    return matches(this, selector) ? this : null;
+  }
+
+  matches(selector) {
+    return matches(this, selector);
+  }
+
+  setPointerCapture() {}
+
+  releasePointerCapture() {}
+
+  dispatchEvent(type, extra = {}) {
     const handlers = this._listeners.get(type) || [];
-    const event = { type, target: this, preventDefault() {} };
+    const event = { type, target: this, preventDefault() {}, ...extra };
     handlers.forEach((h) => h(event));
+    // Como no DOM real, também dispara a propriedade on<evento> (onclick etc).
+    const inline = this[`on${type}`];
+    if (typeof inline === 'function') inline(event);
     return event;
   }
 
@@ -232,11 +253,51 @@ export function createFakeDocument(entries = []) {
     createElement: (tag) => new FakeElement(tag),
     querySelector: (sel) => root.querySelector(sel),
     querySelectorAll: (sel) => root.querySelectorAll(sel),
+    getElementById: (id) => byId.get(id) || null,
     addEventListener() {},
+    removeEventListener() {},
     dispatchEvent() {},
   };
 
   return document;
+}
+
+/**
+ * Instala os globais que a interface usa (document, window, rAF, location).
+ * Devolve uma função para restaurar tudo no fim do teste.
+ *
+ * requestAnimationFrame vira um no-op: sem ele o laço de render ficaria
+ * rodando para sempre e travaria o processo de teste. Os testes chamam a
+ * atualização de câmera diretamente.
+ */
+export function installGlobals(doc) {
+  const anteriores = {};
+  const definidos = {
+    document: doc,
+    window: {
+      innerWidth: 1280,
+      innerHeight: 800,
+      addEventListener() {},
+      removeEventListener() {},
+      devicePixelRatio: 1,
+    },
+    location: undefined,
+    requestAnimationFrame: () => 0,
+    cancelAnimationFrame: () => {},
+  };
+
+  for (const [chave, valor] of Object.entries(definidos)) {
+    anteriores[chave] = globalThis[chave];
+    if (valor === undefined) delete globalThis[chave];
+    else globalThis[chave] = valor;
+  }
+
+  return () => {
+    for (const [chave, valor] of Object.entries(anteriores)) {
+      if (valor === undefined) delete globalThis[chave];
+      else globalThis[chave] = valor;
+    }
+  };
 }
 
 /** Extrai { id, classes, hidden } de todas as tags com id em um HTML. */

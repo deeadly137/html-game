@@ -1,127 +1,116 @@
 # 🎲 Miscigenação: Linha do Tempo
 
-Jogo de tabuleiro **educativo e visual** sobre a miscigenação no Brasil: percorra a
-linha do tempo do período indígena até o Brasil atual, jogue o dado, responda
-perguntas, encare cartas de **Sorte** e **Reverse** e acumule **pontos culturais**.
+Jogo de tabuleiro **educativo e visual** sobre a miscigenação no Brasil. Percorra a
+linha do tempo do período indígena ao Brasil atual, jogue o dado, responda perguntas
+e colecione **pontos culturais**.
 
-> **Objetivo:** percorrer a linha do tempo da miscigenação no Brasil, do período
-> colonial até os dias atuais, entendendo os desafios e conquistas das diferentes
-> etnias que formaram nossa sociedade.
+O tabuleiro é um **mundo horizontal**: o mundo anda, a câmera desliza, a peça caminha
+casa a casa e o dado é lançado no mapa — nada de painéis fixos ocupando a tela.
+
+**▶️ Jogar: <https://deeadly137.github.io/html-game/>**
 
 ---
 
-## ▶️ Como jogar (interface gráfica)
+## ▶️ Como rodar
 
 Requisito: **Node.js 18+**. Não há nenhuma dependência para instalar.
 
 ```bash
-cd lic
 npm start          # ou: node server.js
 ```
 
-Depois abra **http://localhost:5173** no navegador. Para usar outra porta:
+Depois abra **http://localhost:5173**. Para outra porta: `node server.js 8080`.
 
-```bash
-node server.js 8080   # http://localhost:8080
-```
+> ⚠️ Abrir o `index.html` com duplo clique **não funciona**: os módulos ES são
+> bloqueados em `file://`. O próprio jogo mostra um aviso ensinando a iniciar o servidor.
 
-> ⚠️ Abrir o arquivo `index.html` com duplo clique **não funciona** (o navegador
-> bloqueia módulos ES em `file://`). Se isso acontecer, o próprio jogo mostra um
-> aviso explicando como iniciar o servidor.
+---
 
-### O que a interface oferece
+## 🕹️ Como se navega
 
-Tela disposta como uma mesa de jogo: **tabuleiro no centro**, e nas laterais os
-painéis de apoio — à **esquerda o placar com a mesa de cartas logo abaixo** e à
-direita o dado e o diário.
-
-```
-┌──────────────────┬───────────────────────┬───────────┐
-│ PLACAR           │      TABULEIRO        │   DADO    │
-│  🪶 Ana   casa 12│   (linha do tempo)    │  🎲 ⚄     │
-│  🥁 Bia   casa 18│                       │  DIÁRIO   │
-├──────────────────┤                       │   ...     │
-│ MESA DE CARTAS   │                       │           │
-│  🍀 Sorte  12/12 │                       │           │
-│  🔄 Reverse 12/12│                       │           │
-│  ❓ Perguntas 21 │                       │           │
-│ ┌ carta em jogo┐ │                       │           │
-└─┴──────────────┴─┴───────────────────────┴───────────┘
-```
-
-| Área | Descrição |
+| Ação | O que faz |
 | --- | --- |
-| **Tela de configuração** | Escolha de 1 a 4 jogadores, nome e peão de cada um, e uma semente opcional (para partidas reproduzíveis). |
-| **Tabuleiro (centro)** | Folha de papel com as 30 casas organizadas em 9 faixas (Partida + 7 eras + Chegada). Cada faixa é lida **da esquerda para a direita**, em ordem crescente, e traz à sua esquerda uma placa com o nome e o período da era. |
-| **Casas** | Quadrados de papel com a cor da era no topo; Sorte 🍀 (verde), Reverse 🔄 (roxo) e Pergunta ❓ (azul) se destacam à primeira vista. A casa do jogador da vez sobe e ganha moldura dourada. |
-| **Peões** | Peões redondos na cor da raiz cultural: 🪶 indígena, 🥁 africano, 🏰 europeu, 🏮 asiático. O peão da vez pulsa na casa atual. |
-| **Placar (esquerda, topo)** | Fichas de jogador com posição, pontos culturais e status ("refletindo") em tempo real. |
-| **Mesa de cartas (esquerda, embaixo do placar)** | Os três baralhos empilhados com a contagem de cartas restantes (`12/12`, `21/21`…) e, logo abaixo, **a carta/pergunta que está em jogo** naquele momento, com borda na cor do tipo. |
-| **Dado e diário (direita)** | Botão "Rolar o dado" com dado de 6 faces em pontos (ou tecla `Espaço` / `Enter`), e o registro de tudo o que acontece na partida. |
-| **Modais** | Perguntas com alternativas em relevo (atalhos `1`–`4`), cartas de Sorte/Reverse e a tela de vencedor com o ranking final. |
-
-> **Observação:** as cartas da bandeja são informativas — ao cair numa casa especial
-> o efeito da carta continua sendo aplicado automaticamente, como sempre.
+| **Roda do mouse / arrastar / ← →** | Olham o percurso. A câmera desliza suavemente (lerp), não a peça. |
+| **Espaço** ou **Focar peça** | Volta o foco para o peão da vez. |
+| **Clicar no dado** (ou `Enter`) | Rola o dado, que fica **no mapa**, ao lado da peça. |
+| **1–4** | Respondem a pergunta quando a casa é de pergunta. |
+| **Diário** | Abre a gaveta com o registro da partida. |
 
 ---
 
 ## 📜 Regras
 
-1. **Escolha do peão:** cada jogador assume uma raiz cultural (indígena, africano, europeu ou asiático).
-2. **Jogar o dado:** avance o número de casas sorteado (dado de 6 faces).
-3. **Casas especiais:**
-   - ❓ **Pergunta** — responda uma questão de múltipla escolha sobre a miscigenação.
-   - 🍀 **Sorte** — puxe uma carta positiva (avançar casas, ganhar pontos, jogar de novo…).
-   - 🔄 **Reverse** — puxe uma carta de desafio/preconceito que pede **inversão de perspectiva**
-     (voltar casas, passar o turno refletindo, trocar de lugar com quem está na frente…).
-4. **Erro:** se errar a pergunta, você **volta para a casa onde estava antes de rolar o dado**.
-5. **Pontos culturais:** acerto de pergunta e boas cartas rendem pontos. Chegar ao fim dá bônus.
-6. **Vitória:** o jogo termina quando alguém alcança **Brasil Atual**; vence quem chega
-   com o **maior número de pontos culturais**.
+1. **Jogar o dado** e avançar o número de casas. O peão anda **casa a casa** pelo caminho.
+2. Casar em **❓ Pergunta**: responder dá pontos culturais. **Errar faz voltar para a
+   casa onde estava antes de rolar.**
+3. Casar em **✦ Sorte** ou **↺ Reverse**: a carta é puxada, vira na tela e o efeito
+   acontece de fato.
+4. Depois de cada resposta aparece um **“você sabia?”** com um fato histórico — é aqui
+   que o jogo ensina, e não só pontua.
+5. Vence quem chega ao **Brasil Atual** com mais pontos culturais.
 
-### A linha do tempo (30 casas, 7 eras)
+### As sete eras (cada uma com seu cenário e comprimento)
 
-1. 🪶 **Período Indígena** — antes da colonização
-2. ⛵ **Chegada dos Portugueses** — 1500 – século XVI
-3. ⛓️ **Tráfico de Africanos Escravizados** — século XVI – XIX
-4. 🎨 **Mestiçagem no Brasil Colônia** — século XVII – XVIII
-5. 🕊️ **Abolição da Escravidão** — 1871 – 1888
-6. 🚢 **Imigração Europeia e Asiática** — século XIX – XX
-7. 🌎 **Brasil Moderno e Diverso** — século XX – XXI → 🏁 **Brasil Atual**
+| # | Era | Período |
+| --- | --- | --- |
+| 1 | Período Indígena | antes da colonização |
+| 2 | Chegada dos Portugueses | 1500 – século XVI |
+| 3 | Tráfico de Africanos Escravizados | século XVI – XIX |
+| 4 | Mestiçagem no Brasil Colônia | século XVII – XVIII |
+| 5 | Abolição da Escravidão | 1871 – 1888 |
+| 6 | Imigração Europeia e Asiática | século XIX – XX |
+| 7 | Brasil Moderno e Diverso | século XX – XXI |
+
+Cada trecho tem **comprimento próprio** — a era da escravidão é o trecho mais longo do
+percurso — e um cenário com céu e silhuetas que mudam (mata, mar, canavial, casario,
+porto, cidade).
 
 ---
 
-## 🗂️ Estrutura do projeto
+## 🧭 Sobre a lógica das cartas Reverse
 
-O **motor de regras é separado da interface**, então o mesmo jogo roda no
-navegador, no terminal e nos testes automatizados.
+As cartas Reverse **não punem quem sofre o preconceito**. A regra é:
+
+- quem **enfrenta** o preconceito (fala, explica, denuncia) **avança ou ganha pontos**;
+- quem **fica em silêncio** perde tempo estudando — mas ganha conhecimento.
+
+Não existe carta em que a vítima recua. Isso é verificado por teste automatizado.
+
+---
+
+## 🗂️ Estrutura
 
 ```
 lic/
-├── index.html            # Interface gráfica do jogo (GUI)
-├── style.css             # Estilos do tabuleiro, cartas, modais e animações
+├── index.html            # Interface: mundo, HUD, modais
+├── style.css             # Xilogravura de cordel: papel, tinta, cores chapadas
 ├── src/
-│   ├── data.js           # Conteúdo: tabuleiro, eras, peões, cartas e perguntas
+│   ├── data.js           # Conteúdo: tabuleiro, eras, perguntas, fatos, cartas, cenários
 │   ├── engine.js         # Motor de regras puro (dado, turnos, pontos, vitória)
-│   └── ui.js             # Ligação entre o motor e o DOM
-├── server.js             # Servidor estático sem dependências (npm start)
-├── cli.js                # Versão opcional para terminal
-├── tools/fake-dom.js     # DOM mínimo para testar a GUI sem navegador
-├── test/
-│   ├── engine.test.js    # Testes das regras do jogo
-│   └── ui.test.js        # Teste de fumaça da interface gráfica
-└── package.json
+│   ├── world.js          # Geometria do mundo: percurso curvo, casas, câmera
+│   ├── ui.js             # Liga o motor ao DOM: câmera, animações, modais
+│   └── README.md         # Este arquivo
+├── server.js             # Servidor estático sem dependências
+├── cli.js                # Versão de terminal (opcional)
+├── tools/
+│   ├── fake-dom.js       # DOM mínimo para testar a interface sem navegador
+│   └── inspect-world.mjs # Imprime a geometria do mundo (apoio ao desenvolvimento)
+└── test/
+    ├── engine.test.js    # Testes das regras e do conteúdo
+    └── ui.test.js        # Testes da interface (mundo, dado, caminhada, cartas, fatos)
 ```
 
-### Detalhes de implementação
+### Decisões técnicas
 
-- **Determinismo:** todos os sorteios usam um PRNG com *seed* (`mulberry32`), então
-  uma partida com a mesma semente acontece exatamente igual — ótimo para testar e
-  para reproduzir partidas em sala de aula.
-- **Alternativas embaralhadas:** as opções de cada pergunta são embaralhadas em
-  tempo de execução, evitando que a resposta correta fique sempre na mesma posição.
-- **Zero dependências:** nenhuma biblioteca externa; apenas a biblioteca padrão do
-  Node (para o servidor e os testes) e JavaScript puro no navegador.
+- **A geometria é pura.** `world.js` calcula o percurso com matemática (meia onda de
+  cosseno + ondulação) e a **mesma** função usada para desenhar o `d` do caminho SVG
+  posiciona as casas e move os peões. Por isso dá para testar tudo no Node.
+- **Determinismo por semente.** Todo sorteio passa por um PRNG `mulberry32`, então a
+  mesma semente reproduz a partida inteira.
+- **Alternativas embaralhadas** em tempo de execução: a resposta certa não fica sempre
+  na mesma posição.
+- **Sem emoji e sem dependência externa.** Os peões, as silhuetas e o dado são
+  desenhados (SVG/CSS). Nenhuma biblioteca, nenhuma fonte remota, nenhuma imagem.
 
 ---
 
@@ -131,49 +120,35 @@ lic/
 npm test
 ```
 
-Cobrem o motor (movimentação, acerto/erro, efeitos das cartas, turnos pulados,
-troca de lugar, vitória/ranking, determinismo e uma partida completa simulada) e
-a interface gráfica (início da partida, tabuleiro com 30 casas, modais de pergunta,
-tela de vencedor e reinício) — esta última rodando com um DOM mínimo, sem navegador.
+42 testes: regras do motor, conteúdo (toda pergunta tem um fato, nenhuma carta puniu a
+vítima) e a interface rodando com um DOM mínimo — incluindo um teste que **joga uma
+partida inteira** até o vencedor e outro que prova que o peão **passa por cada casa**
+do trajeto, sem pular.
 
----
-
-## 💻 Jogar no terminal (opcional)
-
-A GUI é a forma principal de jogar, mas há uma versão de terminal:
+Apoio ao desenvolvimento:
 
 ```bash
-node cli.js                        # partida interativa com 2 jogadores
-node cli.js --players 3            # 3 jogadores
-node cli.js --names "Ana,Bia"      # nomes personalizados
-node cli.js --seed 42              # partida reproduzível
-node cli.js --auto                 # partida automática (demonstração)
+node tools/inspect-world.mjs   # geometria do percurso, casas e câmera
+node cli.js --auto             # partida completa no terminal
 ```
 
 ---
 
-## ✏️ Personalizando o conteúdo
+## ✏️ Personalizando
 
-Todo o conteúdo educativo está em **`src/data.js`**:
+Todo o conteúdo está em **`src/data.js`**:
 
-- **Adicionar pergunta** — inclua um objeto em `QUESTIONS`:
-  ```js
-  {
-    id: 'q22',
-    era: 'moderno',
-    prompt: 'Sua pergunta aqui?',
-    options: ['Correta', 'Errada 1', 'Errada 2', 'Errada 3'],
-    answer: 0, // índice da correta na ordem original
-  }
-  ```
-- **Adicionar carta** — inclua um objeto em `SORTE_CARDS` ou `REVERSE_CARDS`.
-  Os efeitos disponíveis são `{ move: n }`, `{ points: n }`, `{ skipTurns: n }`,
-  `{ swapWithLeader: true }` e `{ extraTurn: true }` (podem ser combinados).
-- **Mudar casas/eras** — edite `SPACE_TABLE` e `ERAS` no mesmo arquivo
-  (as eras usam 4 casas cada, e a última casa é sempre a de chegada).
+- **Pergunta** — `QUESTIONS` (com `answer` = índice da correta na ordem original);
+- **Fato do "você sabia?"** — `FACTS`, chaveado pelo id da pergunta;
+- **Carta** — `SORTE_CARDS` / `REVERSE_CARDS`. Efeitos: `{ move }`, `{ points }`,
+  `{ skipTurns }`, `{ swapWithLeader }`, `{ extraTurn }` (combináveis);
+- **Cenário de uma era** — `SCENES`: `length` (comprimento no mundo), `sky` (gradiente),
+  `far` (cor das silhuetas), `ink` e `profile` (formato do relevo);
+- **Formato do mundo** — `WORLD` (respiro, faixa vertical, ondulação) e `LEVELS`
+  (nível do caminho em cada divisa).
 
 Regras numéricas (lados do dado, pontos por acerto, bônus de chegada) ficam em
-`DEFAULTS`, no topo de `src/engine.js`.
+`DEFAULTS`, em `src/engine.js`.
 
 ---
 

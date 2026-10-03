@@ -1,9 +1,10 @@
 /**
- * ui.test.js — Teste de fumaça da GUI (src/ui.js) rodando sem navegador,
+ * ui.test.js — teste de fumaça da interface, rodando sem navegador
  * com um DOM mínimo (tools/fake-dom.js).
  *
- * Valida a cadeia completa: montagem da tela de setup -> início da partida ->
- * renderização do tabuleiro -> rolagens -> respostas -> tela de vencedor.
+ * O que se verifica aqui é o que o jogador vê: o mundo horizontal com a
+ * trilha curva, o dado lançado no mapa, a peça andando casa a casa, a carta
+ * virando na tela, o "você sabia?" depois da resposta e o HUD enxuto.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -11,175 +12,310 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { createFakeDocument, parseHtmlIds } from '../tools/fake-dom.js';
+import { createFakeDocument, parseHtmlIds, installGlobals } from '../tools/fake-dom.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const flush = () => new Promise((resolve) => setTimeout(resolve, 1));
+const flush = (ms = 2) => new Promise((r) => setTimeout(r, ms));
 
-test('GUI: fluxo completo do jogo até a tela de vencedor', async () => {
-  // 1) Monta um "documento" com todos os ids declarados no index.html.
+/** Monta um documento novo, importa a interface e remonta o app nele. */
+async function boot(count = 2) {
   const html = readFileSync(join(root, 'index.html'), 'utf8');
   const entries = parseHtmlIds(html);
   assert.ok(entries.length > 20, 'index.html deve conter os elementos da interface');
 
   const doc = createFakeDocument(entries);
-  globalThis.document = doc;
-  doc.byId.get('player-count').value = '2';
+  installGlobals(doc);
+  doc.byId.get('player-count').value = String(count);
 
-  // 2) Importa a interface (init() roda no carregamento do módulo).
-  const ui = await import('../src/ui.js');
-  ui.uiConfig.animTicks = 1; // sem animação do dado
-  ui.uiConfig.answerDelayMs = 0; // sem espera após responder
+  const api = await import('../src/ui.js');
+  api.uiConfig.instant = true; // sem animação: o teste é determinístico
+  api.uiConfig.forcedRoll = null;
+  const state = api.mountApp();
 
   const get = (id) => doc.byId.get(id);
+  const start = async () => {
+    get('btn-start').click();
+    await flush();
+  };
 
-  assert.ok(get('screen-setup').classList.contains('active'), 'tela de setup visível ao iniciar');
-  assert.equal(get('player-fields').querySelectorAll('.player-row').length, 2, '2 campos de jogador');
+  return { doc, api, state, get, start, html };
+}
 
-  // 3) Trocar o número de jogadores recria os campos.
-  get('player-count').value = '4';
-  get('player-count').dispatchEvent('change');
-  assert.equal(get('player-fields').querySelectorAll('.player-row').length, 4);
+/* ------------------------------------------------------------------ */
+/* O mundo                                                             */
+/* ------------------------------------------------------------------ */
+test('GUI: o mundo é uma tira horizontal com trilha curva e 30 casas', async () => {
+  const { state, get, start } = await boot(3);
+  const { worldWidth } = await import('../src/world.js');
 
-  get('player-count').value = '2';
-  get('player-count').dispatchEvent('change');
-  const rows = get('player-fields').querySelectorAll('.player-row');
-  assert.equal(rows.length, 2);
-  rows[0].querySelector("input[type='text']").value = 'Ana';
-  rows[1].querySelector("input[type='text']").value = 'Bia';
-  get('seed-input').value = '4242';
+  assert.ok(get('screen-setup').classList.contains('active'), 'começa no setup');
+  assert.equal(get('player-fields').querySelectorAll('.player-row').length, 3);
 
-  // 4) Regras abrem e fecham.
-  get('btn-rules').click();
-  assert.equal(get('rules-modal').hidden, false);
-  get('btn-rules-close').click();
-  assert.equal(get('rules-modal').hidden, true);
+  await start();
 
-  // 5) Inicia a partida.
-  get('btn-start').click();
   assert.equal(get('screen-setup').classList.contains('active'), false);
   assert.equal(get('screen-game').classList.contains('active'), true);
-  assert.equal(get('board').querySelectorAll('.tile').length, 30, 'tabuleiro com 30 casas');
-  assert.equal(get('board').querySelectorAll('.era-group').length, 9, '9 faixas: partida + 7 eras + chegada');
-  assert.ok(get('board').querySelectorAll('.era-label').length === 9, 'cada faixa tem seu rótulo de era');
-  assert.equal(get('board').querySelectorAll('.era-group.reverse').length, 0, 'nenhuma faixa invertida');
-  assert.equal(get('board').querySelectorAll('.tile.type-sorte').length, 5, '5 casas de Sorte');
-  assert.equal(get('board').querySelectorAll('.tile.type-reverse').length, 5, '5 casas Reverse');
-  assert.equal(get('board').querySelectorAll('.tile.type-pergunta').length, 7, '7 casas de Pergunta');
 
-  // A trilha não pode quebrar linha: cada era é UMA faixa com suas casas.
-  const casasPorEra = get('board').querySelectorAll('.era-group').map((g) => g.querySelectorAll('.tile').length);
-  assert.deepEqual(
-    casasPorEra,
-    [1, 4, 4, 4, 4, 4, 4, 4, 1],
-    'Partida (1) + 7 eras (4 casas cada) + Chegada (1)',
-  );
+  // O mundo é largo (não é uma página com scroll vertical).
+  const largura = Number(get('world').style.width.replace('px', ''));
+  assert.ok(largura > 8000, `o mundo deve ser largo (recebi ${largura}px)`);
+  assert.ok(worldWidth() > 8000, 'a largura vem da geometria do percurso');
 
-  // A ordem das casas é crescente, da esquerda para a direita, faixa por faixa.
-  for (const grupo of get('board').querySelectorAll('.era-group')) {
-    const casas = grupo.querySelectorAll('.tile').map((t) => Number(t.dataset.index));
-    const crescente = casas.every((n, i) => i === 0 || n === casas[i - 1] + 1);
-    assert.ok(crescente, `a faixa deve ler em ordem crescente: [${casas.join(' ')}]`);
+  // A trilha é um caminho SVG amostrado ao longo do percurso.
+  const d = get('trail-path').getAttribute('d');
+  assert.ok(d.startsWith('M'), 'a trilha tem um caminho SVG');
+  assert.ok((d.match(/L/g) || []).length > 50, 'o caminho é amostrado, não reto');
+
+  // 30 casas avançando para a direita e com relevo (sobe e desce).
+  const casas = get('houses').querySelectorAll('.house');
+  assert.equal(casas.length, 30, '30 casas no mapa');
+  const xs = casas.map((c) => Number(c.style.left.replace('px', '')));
+  const ys = casas.map((c) => Number(c.style.top.replace('px', '')));
+  assert.ok(xs.every((x, i) => i === 0 || x > xs[i - 1]), 'as casas avançam para a direita');
+  assert.ok(Math.max(...ys) - Math.min(...ys) > 40, 'o percurso tem relevo, não é uma linha reta');
+
+  // Cada era tem um trecho de cenário próprio (comprimentos diferentes).
+  const segmentos = state.layout.segments;
+  assert.equal(segmentos.length, 9, 'nove trechos');
+  assert.ok(new Set(segmentos.map((s) => s.scene.length)).size > 3, 'os trechos têm comprimentos diferentes');
+  assert.equal(get('px-sky').querySelectorAll('.sky-slice').length, 9, 'o céu muda a cada era');
+  assert.ok(get('px-far').innerHTML.includes('<svg'), 'há silhuetas de cenário no fundo');
+
+  // Nada de painel lateral: o HUD é só fichas, baralhos e minimapa.
+  assert.equal(get('screen-game').querySelectorAll('.panel').length, 0, 'nenhum painel fixo aberto');
+  assert.equal(get('chips').querySelectorAll('.chip').length, 3, 'uma ficha por jogador');
+  assert.equal(get('decks').querySelectorAll('.deck').length, 3, 'três baralhos');
+  assert.equal(get('minimap').querySelectorAll('.minimap-mark').length, 3, 'três marcas no minimapa');
+  assert.equal(get('minimap').querySelectorAll('.minimap-seg').length, 9, 'nove trechos no minimapa');
+});
+
+test('GUI: os peões são desenhados, sem emoji e sem estereótipo', async () => {
+  const { get, start } = await boot(2);
+  await start();
+
+  const peoes = get('pawns').querySelectorAll('.pawn');
+  assert.equal(peoes.length, 2);
+  assert.ok(peoes[0].innerHTML.includes('<svg'), 'o peão é um desenho, não um emoji');
+  assert.doesNotMatch(peoes[0].innerHTML, /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]/u, 'sem emoji no peão');
+
+  const { PAWNS } = await import('../src/data.js');
+  for (const p of Object.values(PAWNS)) {
+    assert.doesNotMatch(p.label, /indígena|africano|europeu|asiático/i, 'o peão não é uma "raiz cultural"');
+    assert.match(p.color, /^#[0-9a-f]{6}$/i);
   }
+});
+/* ------------------------------------------------------------------ */
+/* O dado no mapa                                                      */
+/* ------------------------------------------------------------------ */
+test('GUI: o dado é lançado NO MAPA, ao lado da peça da vez', async () => {
+  const { api, get, start } = await boot(2);
+  await start();
 
-  // Detalhes visuais de jogo
-  const die = get('die-display');
+  const die = get('die');
+  assert.ok(die.style.left, 'o dado tem posição no mapa');
   assert.equal(die.querySelectorAll('.pip').length, 9, 'dado montado com 9 pontos');
-  assert.equal(die.dataset.face, '0', 'dado começa mostrando "?"');
+  assert.equal(die.dataset.face, '0', 'ainda não rolou');
 
-  // Mesa de cartas na parte inferior: 3 baralhos + a carta em jogo.
-  const tray = get('deck-sorte').parentNode;
-  assert.equal(tray.querySelectorAll('.deck').length, 3, 'a mesa tem os 3 baralhos');
-  assert.equal(get('count-sorte').textContent, '12/12', 'baralho de Sorte começa com 12 cartas');
-  assert.equal(get('count-reverse').textContent, '12/12', 'baralho de Reverse começa com 12 cartas');
-  assert.equal(get('count-pergunta').textContent, '21/21', 'baralho de Perguntas começa com 21 cartas');
-  assert.ok(get('drawn-card').classList.contains('drawn-empty'), 'mesa começa vazia');
-  assert.ok(get('drawn-text').textContent.includes('puxar'), 'mesa explica o que aparece ali');
+  const peao0 = get('pawns').querySelectorAll('.pawn')[0];
+  const dx = Math.abs(Number(die.style.left.replace('px', '')) - Number(peao0.style.left.replace('px', '')));
+  const dy = Math.abs(Number(die.style.top.replace('px', '')) - Number(peao0.style.top.replace('px', '')));
+  assert.ok(dx < 90 && dy < 190, 'o dado fica junto da peça, não num painel lateral');
 
-  assert.ok(get('score-list').innerHTML.includes('Ana'), 'placar mostra a Ana');
-  assert.ok(get('score-list').innerHTML.includes('Bia'), 'placar mostra a Bia');
-  // No início da partida, só a casa do jogador da vez fica destacada.
-  assert.equal(doc.querySelectorAll('.tile.highlight').length, 1, 'casa do jogador da vez destacada');
-  assert.equal(doc.querySelectorAll('.tile.highlight')[0].dataset.index, '0', 'destaque na casa de partida');
-
-  // 6) Joga sozinho até o fim, interagindo pelos mesmos botões da GUI.
-  const btnRoll = get('btn-roll');
-  const questionOptions = get('question-options');
-  const winnerModal = get('winner-modal');
-
-  let steps = 0;
-  while (winnerModal.hidden && steps < 3000) {
-    steps += 1;
-    if (!get('question-modal').hidden) {
-      const option = questionOptions.querySelector('.option');
-      assert.ok(option, 'a pergunta deve exibir alternativas');
-      assert.equal(option.disabled, false, 'alternativas clicáveis');
-      option.click();
-      await flush();
-      continue;
-    }
-    if (!btnRoll.disabled) {
-      btnRoll.click();
-      await flush();
-      assert.ok(
-        ['1', '2', '3', '4', '5', '6'].includes(die.dataset.face),
-        `o dado deve mostrar a face sorteada (data-face=${die.dataset.face})`,
-      );
-      continue;
-    }
-    await flush();
-  }
-
-  assert.equal(winnerModal.hidden, false, 'a tela de vencedor deve aparecer');
-  assert.ok(steps < 3000, 'a partida deve terminar em número razoável de passos');
-  assert.ok(get('winner-name').textContent.includes('venceu'), 'anuncia o vencedor');
-  assert.ok(get('ranking-list').innerHTML.includes('pts'), 'mostra o ranking final');
-  assert.ok(get('log-list').innerHTML.includes('Fim de jogo'), 'diário registra o fim');
-
-  // 7) Peões aparecem no tabuleiro, com a cor da raiz cultural.
-  const tokens = doc.querySelectorAll('[data-tokens]').flatMap((tile) => tile.children);
-  assert.equal(tokens.length, 2, 'os dois peões estão posicionados no tabuleiro');
-  for (const token of tokens) {
-    const cor = token.style.getPropertyValue('--pawn-color');
-    assert.match(cor, /^#[0-9a-f]{6}$/i, 'cada peão recebe a cor da sua raiz cultural');
-  }
-  // Ao fim do jogo o destaque da vez desaparece.
-  assert.equal(doc.querySelectorAll('.tile.highlight').length, 0, 'sem destaque após o fim');
-
-  // A mesa de cartas guarda a última carta/pergunta em jogo.
-  assert.equal(get('drawn-card').classList.contains('drawn-empty'), false, 'mesa mostra a última carta');
-  assert.ok(get('drawn-text').innerHTML.includes('drawn-kind'), 'a carta na mesa tem tipo/título');
-  assert.ok(get('drawn-text').innerHTML.includes('drawn-body'), 'a carta na mesa tem o texto');
-  // 8) "Jogar de novo" volta para o setup com os campos recriados.
-  get('btn-again').click();
-  assert.equal(get('screen-setup').classList.contains('active'), true);
-  assert.equal(get('player-fields').querySelectorAll('.player-row').length, 2);
+  // Rolar muda a face do dado.
+  api.uiConfig.forcedRoll = 4;
+  get('die').click();
+  await flush(40);
+  assert.equal(die.dataset.face, '4', 'o dado mostra a face sorteada');
 });
 
 /* ------------------------------------------------------------------ */
-/* Regressão: a trilha do tabuleiro não pode quebrar em duas linhas.   */
-/* (Era o bug em que a era aparecia como "3 2 1 / - - 4".)             */
+/* Peça andando casa a casa                                            */
 /* ------------------------------------------------------------------ */
-test('CSS: a trilha do tabuleiro fica em uma única faixa (sem quebra de linha)', () => {
-  const css = readFileSync(join(root, 'style.css'), 'utf8');
+test('GUI: a peça ANDA casa a casa pelo percurso (não teletransporta)', async () => {
+  const { api, state, get, start } = await boot(2);
+  await start();
 
-  // Varre TODAS as regras que miram .era-track (inclusive dentro de media queries).
-  const regras = [...css.matchAll(/([^{}]*\.era-track[^{}]*)\{([^}]*)\}/g)];
-  assert.ok(regras.length > 0, 'style.css deve definir .era-track');
+  // Passos rápidos, mas observáveis: dá para ver a peça casa a casa.
+  api.uiConfig.instant = false;
+  api.uiConfig.stepMs = 6;
+  api.uiConfig.dieTicks = 0;
+  api.uiConfig.forcedRoll = 4;
 
-  for (const [, seletor, corpo] of regras) {
-    const nome = seletor.trim();
-    assert.doesNotMatch(corpo, /auto-fit|auto-fill/, `${nome}: auto-fit/auto-fill quebra a faixa`);
-    assert.doesNotMatch(corpo, /grid-template-columns/, `${nome}: não deve usar grid (a trilha é flex)`);
-    assert.doesNotMatch(corpo, /flex-wrap:\s*wrap/, `${nome}: wrap quebraria a era em duas linhas`);
+  const peao = get('pawns').querySelectorAll('.pawn')[0];
+  const visitadas = new Set();
+  const espiao = setInterval(() => visitadas.add(state.pos[0]), 1);
+
+  get('die').click();
+  await flush(220);
+  clearInterval(espiao);
+
+  assert.equal(state.game.players[0].position, 4, 'andou as 4 casas do dado');
+
+  // Passou por TODAS as casas do trajeto, uma a uma — sem pulo.
+  for (let c = 1; c <= 4; c += 1) {
+    assert.ok(visitadas.has(c), `a peça passou pela casa ${c}`);
   }
 
-  const principal = css.match(/\.era-track\s*\{([^}]*)\}/)[1];
-  assert.match(principal, /display:\s*flex/, '.era-track deve usar flex');
+  // E parou exatamente na casa sorteada, no ponto do caminho.
+  const alvo = state.layout.houses.find((h) => h.index === 4);
+/* ------------------------------------------------------------------ */
+/* Carta e pergunta                                                    */
+/* ------------------------------------------------------------------ */
+test('GUI: a carta é puxada, vira na tela e o efeito acontece', async () => {
+  const { api, state, get, start } = await boot(2);
+  await start();
 
-  // As casas precisam poder encolher para caber na faixa.
-  const casas = css.match(/\.era-track\s*>\s*\.tile\s*\{([^}]*)\}/);
-  assert.ok(casas, '.era-track > .tile deve ter regra própria');
-  assert.match(casas[1], /min-width:\s*0/, 'as casas precisam de min-width: 0 para encolher');
-  assert.match(casas[1], /flex:\s*1 1 0/, 'as casas dividem a faixa igualmente');
+  // Da casa 2 com um 1 no dado, cai exatamente na casa 3 (Sorte).
+  state.game.players[0].position = 2;
+  state.pos[0] = 2;
+  api.uiConfig.forcedRoll = 1;
+  // Carta sem movimento (só pontos): a posição final é previsível.
+  const carta = state.game.sorteDeck.items.find((c) => c.id === 's02');
+  state.game.sorteDeck.pile = [carta];
+  const antesSorte = state.game.getDeckInfo().sorte.remaining;
+
+  get('die').click();
+  await flush(60);
+
+  assert.equal(state.game.players[0].position, 3, 'parou na casa de Sorte');
+  assert.ok(state.game.log.filter((e) => e.kind === 'card').length >= 1, 'a carta foi aplicada de fato');
+  assert.ok(state.game.getDeckInfo().sorte.remaining < antesSorte, 'o baralho foi consumido');
+
+  // A carta aparece virada diante do jogador.
+  assert.equal(get('card-stage').hidden, false, 'a carta é mostrada');
+  assert.ok(get('card-title').textContent.length > 0, 'com título');
+  assert.ok(get('card-text').textContent.length > 20, 'e o texto do efeito');
+
+  get('btn-card-ok').click();
+  await flush(10);
+  assert.equal(get('card-stage').hidden, true, 'a carta sai de cena');
+  assert.equal(state.game.currentPlayerIndex, 1, 'o turno passou');
+});
+
+test('GUI: depois de responder, aparece o "você sabia?"', async () => {
+  const { api, state, get, start } = await boot(2);
+  await start();
+
+  // Da casa 1 com um 4 no dado, cai na casa 5 (Pergunta).
+  state.game.players[0].position = 1;
+  state.pos[0] = 1;
+  api.uiConfig.forcedRoll = 4;
+  state.game.questionDeck.pile = [state.game.questionDeck.items[0]];
+
+  get('die').click();
+  await flush(60);
+
+  assert.equal(get('question-modal').hidden, false, 'a pergunta apareceu');
+  assert.equal(get('question-options').querySelectorAll('.option').length, 4, 'quatro alternativas');
+  assert.equal(get('question-fact').hidden, true, 'o fato ainda está escondido');
+
+  // Responde: o "você sabia?" aparece — é aqui que o jogo ensina.
+  get('question-options').querySelectorAll('.option')[0].click();
+  await flush(20);
+
+  assert.equal(get('question-fact').hidden, false, 'o "você sabia?" veio depois da resposta');
+  assert.ok(get('fact-text').textContent.length > 40, 'com um fato histórico de verdade');
+  assert.equal(get('question-modal').hidden, true, 'a pergunta se resolveu');
+});
+
+test('GUI: cada pergunta tem um "você sabia?" e as cartas Reverse não punem a vítima', async () => {
+  const { FACTS, QUESTIONS, REVERSE_CARDS } = await import('../src/data.js');
+
+  const semFato = QUESTIONS.filter((q) => !FACTS[q.id]);
+  assert.deepEqual(semFato, [], 'toda pergunta tem um fato educativo');
+
+  for (const card of REVERSE_CARDS) {
+    const avanco = card.effects.reduce((acc, e) => acc + (e.move || 0), 0);
+    assert.ok(avanco >= 0, `"${card.title}" não deve fazer a vítima recuar`);
+  }
+});
+
+/* ------------------------------------------------------------------ */
+/* HUD                                                                 */
+/* ------------------------------------------------------------------ */
+test('GUI: baralhos no canto e diário como gaveta sob demanda', async () => {
+  const { get, start } = await boot(2);
+  await start();
+
+  const decks = get('decks').querySelectorAll('.deck');
+  assert.equal(decks.length, 3, 'três baralhos físicos no canto');
+  assert.ok(get('decks').querySelector('[data-count="sorte"]').textContent.includes('/'), 'mostra a contagem');
+
+  assert.equal(get('drawer').hidden, true, 'diário fechado no início');
+  get('btn-log').click();
+  assert.equal(get('drawer').hidden, false, 'o diário abre no botão');
+  get('btn-drawer-close').click();
+  assert.equal(get('drawer').hidden, true, 'e fecha de novo');
+});
+
+test('GUI: a câmera pode ser afastada da peça e voltar ao foco', async () => {
+  const { state, get, start } = await boot(2);
+  await start();
+
+  const cam = state.camera;
+  const foco = cam.targetX();
+  cam.lookBy(600);
+  assert.notEqual(cam.targetX(), foco, 'o jogador pode olhar à frente');
+  cam.recenter();
+  assert.equal(cam.targetX(), foco, 'recentrar volta o foco para a peça');
+
+  get('btn-recenter').click();
+  assert.equal(cam.look, 0);
+});
+
+/* ------------------------------------------------------------------ */
+/* Partida inteira                                                     */
+/* ------------------------------------------------------------------ */
+test('GUI: uma partida completa é jogável até o vencedor', async () => {
+  const { api, state, get, start } = await boot(2);
+  await start();
+
+  api.uiConfig.instant = false;
+  api.uiConfig.stepMs = 1;
+  api.uiConfig.dieTicks = 0;
+
+  let passos = 0;
+  while (get('winner-modal').hidden && passos < 4000) {
+    passos += 1;
+
+    // Fecha a carta, se houver uma na mesa.
+    if (!get('card-stage').hidden) {
+      get('btn-card-ok').click();
+      await flush(6);
+      continue;
+    }
+
+    // Responde a pergunta, se estiver aberta (e depois lê o "você sabia?").
+    if (!get('question-modal').hidden) {
+      const opt = get('question-options').querySelectorAll('.option');
+      if (opt.length && !opt[0].disabled) {
+        opt[passos % opt.length].click();
+        await flush(6);
+        continue;
+      }
+      if (!get('btn-question-ok').hidden) {
+        get('btn-question-ok').click();
+        await flush(6);
+        continue;
+      }
+    }
+
+    // Rola o dado.
+    get('die').click();
+    await flush(8);
+  }
+
+  assert.ok(passos < 4000, 'a partida terminou em número razoável de passos');
+  assert.equal(get('winner-modal').hidden, false, 'a tela de vencedor apareceu');
+  assert.ok(get('winner-name').textContent.includes('venceu'), 'anuncia o vencedor');
+  assert.equal(get('ranking-list').querySelectorAll('li').length, 2, 'ranking com os dois jogadores');
+  assert.equal(state.game.isFinished, true, 'o motor fechou a partida');
+
+  // O peão do vencedor chegou ao fim do percurso.
+  const fim = state.layout.houses.find((h) => h.index === state.game.finishIndex);
+  const peao = get('pawns').querySelectorAll('.pawn')[state.game.winnerIndex];
+  assert.ok(Math.abs(Number(peao.style.left.replace('px', '')) - fim.x) < 20, 'o vencedor está na chegada');
+});
+  assert.ok(Math.abs(Number(peao.style.left.replace('px', '')) - alvo.x) < 15, 'parou na casa certa');
+  assert.ok(Math.abs(Number(peao.style.top.replace('px', '')) - alvo.y) < 1, 'no ponto do percurso');
 });
