@@ -67,8 +67,10 @@
         <div class="parallax px-fore" id="px-fore"></div>
       </div>
 
-      <!-- o dado é lançado no mapa, perto da peça da vez -->
-      <div id="die" class="die" role="button" tabindex="0" aria-label="Rolar o dado"></div>
+      <!-- o dado é um cubo de 6 faces, lançado no mapa perto da peça da vez -->
+      <div id="die" class="die" role="button" tabindex="0" aria-label="Rolar o dado">
+        <div id="die-cube" class="die-cube"></div>
+      </div>
     </div>
 
     <!-- barra de status: quem é a vez e quantas casas -->
@@ -82,6 +84,7 @@
       <span class="hud-title">Miscigenação</span>
       <div class="hud-actions">
         <button id="btn-recenter" class="btn btn-mini" type="button" title="Voltar o foco para a peça (espaço)">Focar peça</button>
+        <button id="btn-sound" class="btn btn-mini" type="button" aria-pressed="true">Som</button>
         <button id="btn-log" class="btn btn-mini" type="button">Diário</button>
         <button id="btn-new" class="btn btn-mini" type="button">Nova</button>
       </div>

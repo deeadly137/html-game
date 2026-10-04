@@ -589,15 +589,15 @@ export const PROFILES = Object.freeze({
  *  profile — silhueta de PROFILES
  */
 export const SCENES = Object.freeze({
-  partida: { length: 560, sky: ['#f6ecd6', '#e4d4ad'], far: '#c2a878', ink: '#2a2118', profile: 'campo' },
-  indigena: { length: 1200, sky: ['#efe0c0', '#cbb488'], far: '#9c7b4a', ink: '#241d14', profile: 'mata' },
-  portugueses: { length: 1150, sky: ['#dbe4ea', '#a8bdcc'], far: '#5c7a94', ink: '#22262b', profile: 'mar' },
-  africanos: { length: 1600, sky: ['#f2ddbe', '#d8b483'], far: '#a8763c', ink: '#2b2013', profile: 'canavial' },
-  mesticagem: { length: 1150, sky: ['#f0e2cc', '#d3bb96'], far: '#a58f6b', ink: '#2a2318', profile: 'casario' },
-  abolicao: { length: 1150, sky: ['#f6e3cd', '#dcb9a0'], far: '#b5715a', ink: '#2c1f19', profile: 'campo' },
-  imigracao: { length: 1250, sky: ['#e2ddea', '#b3a9c8'], far: '#7a6f96', ink: '#241f2e', profile: 'porto' },
-  moderno: { length: 1200, sky: ['#dfe7ec', '#aebecd'], far: '#65798c', ink: '#1f2429', profile: 'cidade' },
-  chegada: { length: 640, sky: ['#f7ead2', '#e0c69a'], far: '#c08a3a', ink: '#2a2118', profile: 'mosaico' },
+  partida: { length: 560, sky: ['#fdf3dc', '#f0dcb4'], far: '#c2a878', ground: '#dcc79c', ink: '#2a2118', profile: 'campo' },
+  indigena: { length: 1200, sky: ['#f6e6c4', '#dcc296'], far: '#8fae74', ground: '#c8b483', ink: '#241d14', profile: 'mata' },
+  portugueses: { length: 1150, sky: ['#dceaf2', '#9dc0d6'], far: '#5c7a94', ground: '#cbbf9c', ink: '#22262b', profile: 'mar' },
+  africanos: { length: 1600, sky: ['#f8dfb4', '#e0b070'], far: '#a8763c', ground: '#cdb078', ink: '#2b2013', profile: 'canavial' },
+  mesticagem: { length: 1150, sky: ['#fbe9cd', '#e2c69c'], far: '#a58f6b', ground: '#d6c39c', ink: '#2a2318', profile: 'casario' },
+  abolicao: { length: 1150, sky: ['#fde5cd', '#e6bda0'], far: '#c08468', ground: '#d5bb98', ink: '#2c1f19', profile: 'campo' },
+  imigracao: { length: 1250, sky: ['#e6e1f0', '#b3a9c8'], far: '#7a6f96', ground: '#c9c0d4', ink: '#241f2e', profile: 'porto' },
+  moderno: { length: 1200, sky: ['#e6eef4', '#aebecd'], far: '#7d93a6', ground: '#c3ccd4', ink: '#1f2429', profile: 'cidade' },
+  chegada: { length: 640, sky: ['#fdeed2', '#efd4a4'], far: '#c08a3a', ground: '#dcc79c', ink: '#2a2118', profile: 'mosaico' },
 });
 
 /** Trechos do percurso, na ordem. `era` casa com os ids de ERAS. */

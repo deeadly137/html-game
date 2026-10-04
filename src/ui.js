@@ -17,9 +17,7 @@ import {
   buildLayout,
   worldWidth,
   pathD,
-  silhouettePath,
-  profileFor,
-  pointAtS,
+  scenerySvg,
   Camera,
   clamp,
 } from './world.js';
@@ -33,6 +31,8 @@ export const uiConfig = {
   hopPauseMs: 40,
   dieTicks: 9,
   dieTickMs: 55,
+  /** Efeitos sonoros sintetizados (nos testes fica desligado). */
+  sound: true,
   /** Só para testes: força o valor do dado (null = sorteia de verdade). */
   forcedRoll: null,
 };
@@ -79,6 +79,7 @@ function collectElements() {
     houses: $('houses'),
     pawns: $('pawns'),
     die: $('die'),
+    dieCube: $('die-cube'),
     turnPawn: $('turn-pawn'),
     turnText: $('turn-text'),
     chips: $('chips'),
@@ -89,6 +90,7 @@ function collectElements() {
     btnLog: $('btn-log'),
     btnDrawerClose: $('btn-drawer-close'),
     btnRecenter: $('btn-recenter'),
+    btnSound: $('btn-sound'),
     btnNew: $('btn-new'),
     cardStage: $('card-stage'),
     cardFlip: $('card-flip'),
@@ -126,6 +128,10 @@ const ui = {
   pendingWinner: false,
   /** Posição visual de cada peão (a REGRA vive no motor; aqui é a animação). */
   pos: [],
+  /** Casas por onde cada peão passou, em ordem — usado nos testes e no rastro. */
+  trail: [],
+  /** Promessa da rolagem em andamento (os testes esperam por ela). */
+  rolling: null,
   pawnEls: [],
   deckEls: {},
   houseEls: [],
@@ -194,6 +200,8 @@ function startGame() {
   ui.busy = false;
   ui.pendingWinner = false;
   ui.paused = false;
+  ui.trail = [];
+  ui.rolling = null;
 
   el.setup.classList.remove('active');
   el.game.classList.add('active');
@@ -226,7 +234,7 @@ function buildWorld() {
   el.trailDots.setAttribute('d', d);
 
   renderSky(layout, worldW);
-  renderSilhouettes(layout, worldW);
+  renderScenery(layout);
   renderHouses(layout);
   renderPawns(game);
   renderDecks();
@@ -250,26 +258,27 @@ function renderSky(layout, worldW) {
     slice.style.background = `linear-gradient(180deg, ${a}, ${b})`;
     el.sky.append(slice);
   });
+
+  // Transição entre eras: em vez de um corte seco, uma faixa em degradê
+  // sobreposto na divisa (o céu de uma era dissolvendo no da seguinte).
+  for (let i = 0; i < layout.segments.length - 1; i += 1) {
+    const atual = layout.segments[i];
+    const proximo = layout.segments[i + 1];
+    const blend = document.createElement('div');
+    blend.className = 'sky-slice sky-blend';
+    const largura = 260;
+    blend.style.left = `${atual.x1 - largura / 2}px`;
+    blend.style.width = `${largura}px`;
+    blend.style.background = `linear-gradient(90deg, ${atual.scene.sky[1]}, ${proximo.scene.sky[0]})`;
+    el.sky.append(blend);
+  }
 }
 
-function renderSilhouettes(layout, worldW) {
-  const draw = (offsetFactor, base, amp) =>
-    layout.segments
-      .map((seg, i) => {
-        const w = seg.x1 - seg.x0;
-        const p = silhouettePath(profileFor(seg.id, i + offsetFactor), w, { base, amp });
-        return (
-          `<svg viewBox="0 0 ${w} 100" preserveAspectRatio="none" ` +
-          `style="position:absolute;left:${seg.x0}px;top:0;width:${w}px;height:100%">` +
-          `<path d="${p}" fill="${seg.scene.far}"/></svg>`
-        );
-      })
-      .join('');
-
-  el.far.style.width = `${worldW}px`;
-  el.far.innerHTML = draw(0, 62, 30);
-  el.fore.style.width = `${worldW}px`;
-  el.fore.innerHTML = draw(5, 90, 14);
+function renderScenery(layout) {
+  const altura = layout.height;
+  // Cada trecho é um SVG com viewBox do tamanho exato do elemento:
+  // nenhum eixo é esticado, então os desenhos mantêm a proporção.
+  el.far.innerHTML = layout.segments.map((seg, i) => scenerySvg(seg, i, altura)).join('');
 }
 
 function renderHouses(layout) {
@@ -315,11 +324,16 @@ function renderPawns(game) {
 function layoutPawns() {
   const game = ui.game;
   if (!ui.layout || !game) return;
+  const n = game.players.length;
   ui.pawnEls.forEach((node, i) => {
     const at = housePoint(ui.pos[i]);
-    const spread = (i - (game.players.length - 1) / 2) * 13;
+    // Espaçamento suficiente para as peças não se cobrirem na mesma casa
+    // (largura do corpo do peão ~30px), com um leve escalonamento em altura.
+    const spread = n === 1 ? 0 : (i - (n - 1) / 2) * 32;
+    const camada = n === 1 ? 0 : i * -5;
     node.style.left = `${at.x + spread}px`;
-    node.style.top = `${at.y}px`;
+    node.style.top = `${at.y + camada}px`;
+    node.style.zIndex = String(10 - i);
     node.classList.toggle('is-turn', i === game.currentPlayerIndex && !game.isFinished);
   });
   markHere();
@@ -328,7 +342,9 @@ function layoutPawns() {
 /** Ponto (x,y) de uma casa na geometria do mundo. */
 function housePoint(index) {
   const hit = ui.layout.houses.find((h) => h.index === index);
-  return hit || pointAtS(ui.layout, index > 0 ? 1 : 0);
+  if (hit) return hit;
+  const casas = ui.layout.houses;
+  return index <= 0 ? casas[0] : casas[casas.length - 1];
 }
 
 function markHere() {
@@ -398,23 +414,42 @@ function bindCamera() {
   );
 
   let pointerId = null;
+  let pressX = 0;
+  let arrastando = false;
+
   el.stage.addEventListener('pointerdown', (ev) => {
-    if (ev.target.closest('button')) return;
+    // O dado e os botões têm os próprios cliques: não podem ser capturados
+    // pelo palco (senão o clique é redirecionado e rolar não funciona).
+    if (ev.target.closest('button, #die, .deck, .chip, .minimap')) return;
     pointerId = ev.pointerId;
-    ui.dragging = true;
+    pressX = ev.clientX;
     ui.dragX = ev.clientX;
-    el.stage.classList.add('dragging');
-    el.stage.setPointerCapture(pointerId);
+    arrastando = false;
+    // Sem captura ainda: só vira arrasto depois de um movimento mínimo.
   });
+
   el.stage.addEventListener('pointermove', (ev) => {
-    if (!ui.dragging || ev.pointerId !== pointerId) return;
+    if (pointerId === null || ev.pointerId !== pointerId) return;
     const dx = ev.clientX - ui.dragX;
+
+    if (!arrastando) {
+      // Arrasto só começa depois de 5px: um clique curto não mexe a câmera.
+      if (Math.abs(ev.clientX - pressX) < 5) return;
+      arrastando = true;
+      ui.dragging = true;
+      ui.dragX = ev.clientX;
+      el.stage.classList.add('dragging');
+      el.stage.setPointerCapture(pointerId);
+      return;
+    }
+
     ui.dragX = ev.clientX;
-    ui.camera.lookBy(-dx);
+    ui.camera.panBy(-dx);
   });
   const endDrag = (ev) => {
-    if (ev.pointerId !== pointerId) return;
+    if (pointerId === null || ev.pointerId !== pointerId) return;
     ui.dragging = false;
+    arrastando = false;
     pointerId = null;
     el.stage.classList.remove('dragging');
   };
@@ -438,42 +473,85 @@ function bindCamera() {
 /* Dado (lançado no mapa com um "tum" simples)                         */
 /* ------------------------------------------------------------------ */
 function buildDie() {
-  el.die.innerHTML = '';
-  for (let i = 0; i < 9; i += 1) {
-    const pip = document.createElement('span');
-    pip.className = 'pip';
-    el.die.append(pip);
+  // Cubo de verdade: 6 faces, cada uma com a sua quantidade de pontos.
+  el.dieCube.innerHTML = '';
+  for (let v = 1; v <= 6; v += 1) {
+    const face = document.createElement('div');
+    face.className = `die-face face-${v}`;
+    face.dataset.v = String(v);
+    for (let i = 0; i < 9; i += 1) {
+      const pip = document.createElement('span');
+      pip.className = 'pip';
+      face.append(pip);
+    }
+    el.dieCube.append(face);
   }
-  el.die.dataset.face = '0';
+  setDieFace(0, { silent: true });
 }
 
-function setDieFace(v) {
-  el.die.dataset.face = String(v);
-  el.die.setAttribute('aria-label', v ? `Dado: ${v}` : 'Rolar o dado');
+/** Rotação do cubo que traz cada face para a frente. */
+const DIE_ROTATION = {
+  1: [0, 0],
+  2: [90, 0], // face de baixo
+  3: [0, -90], // face da direita
+  4: [0, 90], // face da esquerda
+  5: [-90, 0], // face de cima
+  6: [0, 180], // face de trás
+};
+
+function setDieFace(v, { silent = false } = {}) {
+  const valor = Number(v) || 0;
+  el.die.dataset.face = String(valor);
+
+  if (!valor) {
+    // Ainda não rolou: cubo apoiado de lado, mostrando um "?".
+    el.dieCube.style.transform = 'rotateX(-22deg) rotateY(28deg)';
+    el.die.dataset.blank = 'true';
+    if (!silent) el.die.setAttribute('aria-label', 'Rolar o dado');
+    return;
+  }
+
+  el.die.dataset.blank = 'false';
+  const [rx, ry] = DIE_ROTATION[valor] || [0, 0];
+  el.dieCube.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg)`;
+  if (!silent) el.die.setAttribute('aria-label', `Dado: ${valor}`);
 }
 
 async function startRoll() {
   const game = ui.game;
   if (!game || ui.busy || game.isFinished || game.phase !== PHASES.AWAITING_ROLL) return;
 
-  ui.busy = true;
-  el.die.classList.add('rolling');
-  if (!uiConfig.instant) {
-    for (let i = 0; i < uiConfig.dieTicks; i += 1) {
-      setDieFace(1 + Math.floor(Math.random() * 6));
-      await sleep(uiConfig.dieTickMs);
+  // Guardamos a promessa: os testes (e o botão) podem esperar o turno acabar.
+  ui.rolling = (async () => {
+    ui.busy = true;
+    setDieFace(0);
+    el.die.classList.add('rolling');
+    playShake();
+
+    if (!uiConfig.instant) {
+      for (let i = 0; i < uiConfig.dieTicks; i += 1) {
+        setDieFace(1 + Math.floor(Math.random() * 6));
+        await sleep(uiConfig.dieTickMs);
+      }
     }
-  }
 
-  const events = game.roll(uiConfig.forcedRoll);
-  const roll = events.find((e) => e.type === 'roll');
-  el.die.classList.remove('rolling');
-  setDieFace(roll ? roll.value : 1);
-  bumpDeck(null);
+    const events = game.roll(uiConfig.forcedRoll);
+    const roll = events.find((e) => e.type === 'roll');
 
-  await playEvents(events);
-  ui.busy = false;
-  if (ui.pendingWinner) flushWinner();
+    // Pouso: transição mais longa com um leve "quique" ao mostrar o resultado.
+    el.die.classList.remove('rolling');
+    el.die.classList.add('settling');
+    setDieFace(roll ? roll.value : 1);
+    playClack();
+    setTimeout(() => el.die.classList.remove('settling'), 500);
+
+    await playEvents(events);
+    ui.busy = false;
+    ui.rolling = null;
+    if (ui.pendingWinner) flushWinner();
+  })();
+
+  return ui.rolling;
 }
 
 /** Um "tum" no baralho que foi puxado. */
@@ -484,6 +562,83 @@ function bumpDeck(kind) {
     void node.offsetWidth;
     node.classList.add('draw');
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Som — sintetizado na hora (sem arquivo, sem dependência)            */
+/* ------------------------------------------------------------------ */
+/**
+ * Cada efeito é um blip curtinho criado com osciladores. Nada de MP3:
+ * o jogo continua sem arquivos externos e sem biblioteca de áudio.
+ * O contexto só nasce no primeiro gesto do usuário (exigência dos navegadores).
+ */
+let audioCtx = null;
+
+function audio() {
+  if (!uiConfig.sound) return null;
+  if (audioCtx) return audioCtx;
+  const AC = typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext);
+  if (!AC) return null;
+  try {
+    audioCtx = new AC();
+  } catch {
+    audioCtx = null;
+  }
+  return audioCtx;
+}
+
+/** Toca um tom curto. */
+function blip({ freq = 440, dur = 0.08, type = 'triangle', gain = 0.14, slide = 0 } = {}) {
+  const ctx = audio();
+  if (!ctx) return;
+  // um "retomar" silencioso: o navegador pausa o contexto até haver gesto
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const vol = ctx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, now);
+  if (slide) osc.frequency.exponentialRampToValueAtTime(Math.max(40, freq + slide), now + dur);
+  vol.gain.setValueAtTime(0.0001, now);
+  vol.gain.exponentialRampToValueAtTime(gain, now + 0.008);
+  vol.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+  osc.connect(vol).connect(ctx.destination);
+  osc.start(now);
+  osc.stop(now + dur + 0.02);
+}
+
+/** O dado sacudindo na mão. */
+function playShake() {
+  blip({ freq: 180, dur: 0.06, type: 'square', gain: 0.05 });
+  setTimeout(() => blip({ freq: 150, dur: 0.05, type: 'square', gain: 0.04 }), 90);
+}
+
+/** O dado batendo na mesa. */
+function playClack() {
+  blip({ freq: 320, dur: 0.09, type: 'square', gain: 0.13, slide: -160 });
+}
+
+/** Um passo da peça no tabuleiro. */
+function playStep() {
+  blip({ freq: 620, dur: 0.04, type: 'sine', gain: 0.05 });
+}
+
+/** Acerto / erro / carta. */
+function playRight() {
+  blip({ freq: 660, dur: 0.1, type: 'triangle', gain: 0.12 });
+  setTimeout(() => blip({ freq: 880, dur: 0.14, type: 'triangle', gain: 0.12 }), 110);
+}
+function playWrong() {
+  blip({ freq: 300, dur: 0.18, type: 'sawtooth', gain: 0.1, slide: -120 });
+}
+function playCard() {
+  blip({ freq: 520, dur: 0.07, type: 'triangle', gain: 0.1, slide: 240 });
+}
+function playWin() {
+  [523, 659, 784, 1046].forEach((f, i) => {
+    setTimeout(() => blip({ freq: f, dur: 0.16, type: 'triangle', gain: 0.12 }), i * 130);
+  });
 }
 /* ------------------------------------------------------------------ */
 /* Peças andando casa a casa pelo MESMO caminho                        */
@@ -502,11 +657,16 @@ async function walkPawn(playerIndex, to) {
   for (let i = 1; i <= total; i += 1) {
     const casa = from + dir * i;
     ui.pos[playerIndex] = casa;
+    if (!ui.trail[playerIndex]) ui.trail[playerIndex] = [];
+    ui.trail[playerIndex].push(casa);
     layoutPawns();
     positionMinimapMarks();
     if (!ui.dragging) ui.camera.setAnchor(housePoint(casa).x);
     applyCamera();
-    if (stepMs > 0) await sleep(stepMs);
+    if (stepMs > 0) {
+      playStep();
+      await sleep(stepMs);
+    }
   }
 }
 
@@ -531,11 +691,25 @@ async function playEvents(events) {
       await showCard(ev.card);
     } else if (ev.type === 'finish') {
       ui.pendingWinner = true;
+    } else if (ev.type === 'turn') {
+      // A câmera vai atrás de quem vai jogar agora — senão o dado do próximo
+      // pode ficar fora da tela quando os jogadores estão distantes.
+      followPlayer(ev.playerIndex);
     } else if (ev.type === 'skip' || ev.type === 'skip_turn') {
       refreshChips();
+    } else if (ev.type === 'hop') {
+      // só animação: o movimento já foi desenhado
     }
   }
   refreshAll();
+}
+
+/** Leva a câmera (e o foco) para o jogador da vez. */
+function followPlayer(index) {
+  const at = housePoint(ui.pos[index]);
+  ui.camera.recenter();
+  ui.camera.setAnchor(at.x);
+  applyCamera();
 }
 
 /* ------------------------------------------------------------------ */
@@ -570,8 +744,11 @@ function askQuestion(question, playerIndex) {
       const buttons = [...el.questionOptions.querySelectorAll('.option')];
       buttons.forEach((b) => { b.disabled = true; });
       const correct = game.pendingQuestion.correctIndex;
-      buttons[i].classList.add(i === correct ? 'is-correct' : 'is-wrong');
-      if (i !== correct) buttons[correct].classList.add('is-correct');
+      const acertou = i === correct;
+      buttons[i].classList.add(acertou ? 'is-correct' : 'is-wrong');
+      if (!acertou) buttons[correct].classList.add('is-correct');
+      if (acertou) playRight();
+      else playWrong();
 
       // O "você sabia?" vem DEPOIS da resposta — é aqui que se aprende.
       const id = game.pendingQuestion.id;
@@ -610,6 +787,7 @@ function showCard(card) {
 
     el.cardStage.hidden = false;
     el.cardStage.classList.remove('revealed');
+    playCard();
     setTimeout(() => el.cardStage.classList.add('revealed'), uiConfig.instant ? 0 : 180);
 
     el.btnCardOk.onclick = () => {
@@ -785,6 +963,7 @@ function flushWinner() {
     el.rankingList.append(li);
   });
   el.winnerModal.hidden = false;
+  playWin();
   refreshAll();
 }
 
@@ -829,6 +1008,12 @@ function init() {
   });
   el.btnRules.addEventListener('click', () => { el.rulesModal.hidden = false; });
   el.btnRulesClose.addEventListener('click', () => { el.rulesModal.hidden = true; });
+  el.btnSound.addEventListener('click', () => {
+    uiConfig.sound = !uiConfig.sound;
+    el.btnSound.setAttribute('aria-pressed', String(uiConfig.sound));
+    el.btnSound.textContent = uiConfig.sound ? 'Som' : 'Som off';
+    if (uiConfig.sound) blip({ freq: 700, dur: 0.08, type: 'triangle', gain: 0.1 });
+  });
   el.btnLog.addEventListener('click', () => { el.drawer.hidden = !el.drawer.hidden; });
   el.btnDrawerClose.addEventListener('click', () => { el.drawer.hidden = true; });
   el.btnHelpToggle.addEventListener('click', () => {
