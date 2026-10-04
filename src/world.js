@@ -41,7 +41,9 @@ export function worldWidth() {
 export function buildLayout({ height = 800 } = {}) {
   const total = SEGMENTS.reduce((sum, s) => sum + SCENES[s.id].length, 0);
 
-  let cursor = 0;
+  // O percurso começa depois do respiro: sem isto, a casa da partida encosta
+  // na borda esquerda e a câmera não tem para onde recuar.
+  let cursor = WORLD.pad;
   let acc = 0;
 
   const segments = SEGMENTS.map((seg, i) => {
@@ -350,7 +352,7 @@ export class Camera {
   constructor({ ratio = 0.38, speed = 5.5 } = {}) {
     this.x = 0;
     this.anchorX = 0;
-    this.look = 0;
+    this.want = null; // posição escolhida pelo jogador; null = seguir a peça
     this.viewport = 0;
     this.width = 0;
     this.ratio = ratio;
@@ -361,59 +363,46 @@ export class Camera {
     this.viewport = Math.max(1, viewport);
     this.width = Math.max(1, worldW);
     this.x = clamp(this.x, 0, this.maxX);
-    this._clampLook();
   }
 
   get maxX() {
     return Math.max(0, this.width - this.viewport);
   }
 
-  setAnchor(x) {
-    this.anchorX = x;
-    // O "olhar" é sempre limitado ao que a câmera consegue alcançar,
-    // senão acumula sem fim e cria uma zona morta na roda do mouse.
-    this._clampLook();
-  }
-
-  /** Posição da câmera "neutra": a peça fica a `ratio` da tela. */
-  get baseX() {
+  /** Onde a câmera ficaria se estivesse seguindo a peça. */
+  get neutralX() {
     return this.anchorX - this.viewport * this.ratio;
   }
 
-  /** Mantém o look dentro do alcance real do mundo. */
-  _clampLook() {
-    const base = this.baseX;
-    this.look = clamp(base + this.look, 0, this.maxX) - base;
+  /** Seguindo a peça? (o jogador não arrastou) */
+  get following() {
+    return this.want === null;
   }
 
-  /**
-   * Move a câmera em `delta` px.
-   * Limita a POSIÇÃO resultante (não o acumulado), então não há zona morta:
-   * ao voltar o movimento responde na hora.
-   */
+  setAnchor(x) {
+    this.anchorX = x;
+  }
+
+  /** Move a câmera em `delta` px, limitando a POSIÇÃO resultante. */
   panBy(delta) {
-    const base = this.baseX;
-    this.look = clamp(base + this.look + delta, 0, this.maxX) - base;
-    return this.look;
+    const de = this.want === null ? this.neutralX : this.want;
+    this.want = clamp(de + delta, 0, this.maxX);
+    return this.want;
   }
 
-  /** Compatibilidade: mesmo que panBy (movimento relativo). */
+  /** Compatibilidade com o nome antigo. */
   lookBy(dx) {
     return this.panBy(dx);
   }
 
+  /** Volta a seguir a peça da vez. */
   recenter() {
-    this.look = 0;
-  }
-
-  /** Quanto ainda dá para olhar para a direita (para a interface limitar). */
-  get lookRange() {
-    const base = this.baseX;
-    return { min: -clamp(base, 0, this.maxX), max: this.maxX - clamp(base, 0, this.maxX) };
+    this.want = null;
   }
 
   targetX() {
-    return clamp(this.baseX + this.look, 0, this.maxX);
+    const base = this.want === null ? this.neutralX : this.want;
+    return clamp(base, 0, this.maxX);
   }
 
   /** Avança a suavização (lerp) e devolve a posição atual da câmera. */
@@ -430,8 +419,14 @@ export class Camera {
     return this.x;
   }
 
-  /** Fatores de parallax das camadas (do fundo para a frente). */
+  /**
+   * Fatores de parallax das camadas.
+   *
+   * Ficam todos em 1: o cenário é desenhado em coordenadas exatas do mundo,
+   * então mover uma camada mais devagar descolaria o chão do caminho. A
+   * sensação de profundidade vem dos próprios desenhos (céu, chão, objetos).
+   */
   static layers() {
-    return { sky: 0.06, far: 0.28, path: 1, fore: 0.82 };
+    return { sky: 1, far: 1, path: 1, fore: 1 };
   }
 }

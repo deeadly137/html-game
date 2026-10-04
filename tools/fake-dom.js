@@ -50,9 +50,13 @@ class FakeClassList {
   remove(...names) {
     names.forEach((n) => this.el._classes.delete(n));
   }
-  toggle(name) {
-    if (this.el._classes.has(name)) this.el._classes.delete(name);
-    else this.el._classes.add(name);
+  toggle(name, force) {
+    // Como no DOM real: o segundo argumento (force) manda, se vier.
+    const tem = this.el._classes.has(name);
+    const deve = force === undefined ? !tem : Boolean(force);
+    if (deve) this.el._classes.add(name);
+    else this.el._classes.delete(name);
+    return deve;
   }
   contains(name) {
     return this.el._classes.has(name);

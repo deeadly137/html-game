@@ -30,9 +30,9 @@ Depois abra **http://localhost:5173**. Para outra porta: `node server.js 8080`.
 
 | Ação | O que faz |
 | --- | --- |
-| **Roda do mouse / arrastar / ← →** | Olham o percurso. A câmera desliza suavemente (lerp), não a peça. O deslocamento é limitado ao mundo: sem zona morta. |
-| **Espaço** ou **Focar peça** | Volta o foco para o peão da vez. |
-| **Clicar no dado** (ou `Enter`) | Rola o dado: um cubo de verdade, lançado **no mapa** ao lado da peça. |
+| **Roda do mouse / arrastar / ← →** | Olham o percurso. A câmera desliza suavemente (lerp), não a peça. O deslocamento é **posição absoluta limitada ao mundo**: sem zona morta. |
+| **Espaço** ou **Focar peça** | Volta a seguir o peão da vez. |
+| **Clicar no dado** (ou `Enter`) | O dado é lançado da **caixa do rodapé** até o mapa, rola, mostra o resultado e volta para a caixa. |
 | **1–4** | Respondem a pergunta quando a casa é de pergunta. |
 | **Diário** | Abre a gaveta com o registro da partida. |
 | **Som** | Liga/desliga os efeitos (dado, passos, carta, acerto). São sintetizados na hora, sem arquivo. |
@@ -105,14 +105,21 @@ lic/
 
 - **A geometria é pura.** `world.js` calcula o percurso com matemática (meia onda de
   cosseno + ondulação) e a **mesma** função usada para desenhar o `d` do caminho SVG
-  posiciona as casas e move os peões. Por isso dá para testar tudo no Node.
+  posiciona as casas e move os peões. Por isso dá para testar tudo no Node. O percurso
+  começa e termina com `WORLD.pad` de respiro, para a partida não encostar na borda.
+- **A câmera guarda POSIÇÃO ABSOLUTA, não deslocamento acumulado.** `want === null`
+  significa "seguindo a peça"; ao arrastar, `want` fixa a posição. Limitar a posição
+  (e não o acumulado) é o que elimina a zona morta da roda — e faz a ordem entre
+  `setBounds` e `setAnchor` deixar de importar.
 - **Cenário desenhado em coordenadas reais.** Cada trecho é um SVG com `viewBox` do
   tamanho exato do elemento — nada de `preserveAspectRatio="none"`, que esticava as
   formas em triângulos. As peças (oca, caravela, engenho, casario, porto, cidade) são
   compostas de primitivas na mesma paleta fechada, e as divisas entre eras têm uma
   faixa de degradê em vez de um corte seco.
-- **Dado de verdade.** Um cubo 3D em CSS com as 6 faces; a rotação leva o resultado
-  para a frente e o pouso tem transição própria (assentamento).
+- **Dado de verdade, numa caixa.** Um cubo 3D em CSS com as 6 faces mora numa caixa no
+  rodapé; ao clicar, é lançado até o mapa por `transform`, rola, assenta o resultado e
+  volta para a caixa. Como a caixa fica no HUD, o dado **sempre** está visível e
+  clicável — não depende de onde a câmera está.
 - **Som sintetizado.** Os efeitos nascem de osciladores na hora, via Web Audio — sem
   arquivo de áudio, sem biblioteca. O contexto só é criado no primeiro gesto, como os
   navegadores exigem.
@@ -131,15 +138,21 @@ lic/
 npm test
 ```
 
-49 testes: regras do motor, conteúdo (toda pergunta tem um fato, nenhuma carta puniu a
+51 testes: regras do motor, conteúdo (toda pergunta tem um fato, nenhuma carta puniu a
 vítima) e a interface rodando com um DOM mínimo. Entre eles:
 
 - uma **partida inteira** jogada até o vencedor;
 - o **rastro** do peão provando que ele passa por cada casa, em ordem, na ida e na volta;
+- o dado disponível em **6 turnos seguidos**, alternando os jogadores;
+- o enquadramento inicial: o peão aparece a 38% da tela, sem colar na borda;
 - travas de regressão para os bugs encontrados jogando no navegador: o clique no dado
   não pode ser capturado pelo palco, um clique curto não pode virar arrasto, o diário
   precisa nascer fechado, a câmera precisa seguir o próximo jogador e os peões não
   podem se cobrir na mesma casa.
+
+> **Sobre o DOM falso:** ele já mascarou um bug — `classList.toggle(nome, force)`
+> ignorava o segundo argumento, então `toggle('is-off', false)` *adicionava* a classe.
+> O shim hoje respeita o `force`, como o DOM real.
 
 Apoio ao desenvolvimento:
 

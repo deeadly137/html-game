@@ -33,6 +33,8 @@ export const uiConfig = {
   dieTickMs: 55,
   /** Efeitos sonoros sintetizados (nos testes fica desligado). */
   sound: true,
+  /** Tempo que o dado fica no mapa antes de voltar para a caixa. */
+  recallMs: 420,
   /** Só para testes: força o valor do dado (null = sorteia de verdade). */
   forcedRoll: null,
 };
@@ -80,6 +82,8 @@ function collectElements() {
     pawns: $('pawns'),
     die: $('die'),
     dieCube: $('die-cube'),
+    dieTray: $('dice-tray'),
+    dieLabel: $('die-label'),
     turnPawn: $('turn-pawn'),
     turnText: $('turn-text'),
     chips: $('chips'),
@@ -366,17 +370,59 @@ function applyCamera() {
   el.sky.style.transform = `translate3d(${(c.x * (1 - layers.sky)).toFixed(1)}px,0,0)`;
   el.far.style.transform = `translate3d(${(c.x * (1 - layers.far)).toFixed(1)}px,0,0)`;
   el.fore.style.transform = `translate3d(${(c.x * (1 - layers.fore)).toFixed(1)}px,0,0)`;
-  positionDie();
   positionMinimapMarks();
 }
 
-/** O dado é lançado NO MAPA: fica ao lado da peça da vez. */
-function positionDie() {
-  const game = ui.game;
-  if (!game || !ui.layout) return;
-  const at = housePoint(ui.pos[game.currentPlayerIndex]);
-  el.die.style.left = `${at.x + 48}px`;
-  el.die.style.top = `${at.y - 118}px`;
+/** Onde o dado deve pousar: perto da peça, mas sempre dentro da tela. */
+function throwOffset() {
+  const caixa = el.dieTray.getBoundingClientRect?.();
+  if (!caixa || !ui.layout || !ui.game) return { dx: 0, dy: 0 };
+
+  const at = housePoint(ui.pos[ui.game.currentPlayerIndex]);
+  const telaX = at.x - ui.camera.x;
+  const telaY = at.y;
+  const vw = window.innerWidth || 1200;
+  const vh = window.innerHeight || 800;
+
+  const alvoX = clamp(telaX + 74, 90, vw - 90);
+  const alvoY = clamp(telaY - 150, 90, vh - 170);
+
+  return {
+    dx: alvoX - (caixa.left + caixa.width / 2),
+    dy: alvoY - (caixa.top + caixa.height / 2),
+  };
+}
+
+/** Joga o dado da caixa até o mapa, com um arco. */
+function throwDie() {
+  const { dx, dy } = throwOffset();
+  ui.throwDx = dx;
+  ui.throwDy = dy;
+  el.die.classList.add('thrown');
+  el.die.style.transition = 'transform 0.42s cubic-bezier(0.25, -0.35, 0.55, 1)';
+  el.die.style.transform = `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px)`;
+  el.die.style.pointerEvents = 'none';
+}
+
+/** Traz o dado de volta para a caixa, mostrando o último número jogado. */
+function recallDie() {
+  el.die.style.transition = 'transform 0.34s cubic-bezier(0.5, 0, 0.7, 0.4)';
+  el.die.style.transform = '';
+  el.die.classList.remove('thrown');
+  setTimeout(() => {
+    el.die.style.pointerEvents = '';
+    el.die.style.transition = '';
+  }, 340);
+}
+
+/** Agenda a volta do dado, sem travar o turno seguinte. */
+let recallTimer = null;
+function agendarRecolhimento() {
+  if (recallTimer) clearTimeout(recallTimer);
+  recallTimer = setTimeout(() => {
+    recallTimer = null;
+    recallDie();
+  }, uiConfig.instant ? 0 : uiConfig.recallMs);
 }
 
 function focusHouse(index, smooth = true) {
@@ -524,9 +570,16 @@ async function startRoll() {
   // Guardamos a promessa: os testes (e o botão) podem esperar o turno acabar.
   ui.rolling = (async () => {
     ui.busy = true;
+    if (recallTimer) {
+      clearTimeout(recallTimer);
+      recallTimer = null;
+    }
     setDieFace(0);
     el.die.classList.add('rolling');
     playShake();
+    // O dado é lançado da caixa até perto da peça.
+    if (uiConfig.instant) el.die.classList.add('thrown');
+    else throwDie();
 
     if (!uiConfig.instant) {
       for (let i = 0; i < uiConfig.dieTicks; i += 1) {
@@ -545,9 +598,13 @@ async function startRoll() {
     playClack();
     setTimeout(() => el.die.classList.remove('settling'), 500);
 
+    // O dado fica no mapa durante a jogada (mostrando o número) e só volta
+    // para a caixa quando o turno termina — a peça não espera por ele.
     await playEvents(events);
     ui.busy = false;
     ui.rolling = null;
+    refreshDieState();
+    agendarRecolhimento();
     if (ui.pendingWinner) flushWinner();
   })();
 
@@ -919,6 +976,15 @@ function refreshDieState() {
   const pode = !game.isFinished && !ui.busy && game.phase === PHASES.AWAITING_ROLL;
   el.die.classList.toggle('is-off', !pode);
   el.die.tabIndex = pode ? 0 : -1;
+  el.dieTray.classList.toggle('is-off', !pode);
+
+  const dono = game.players[game.currentPlayerIndex];
+  el.dieLabel.textContent = game.isFinished
+    ? 'Fim da viagem'
+    : pode
+      ? `${dono.name}: clique para rolar`
+      : 'Aguarde…';
+  if (game.isFinished) el.dieLabel.textContent = 'Fim da viagem';
 }
 
 function refreshAll() {
@@ -929,7 +995,6 @@ function refreshAll() {
   refreshDecks();
   refreshLog();
   positionMinimapMarks();
-  positionDie();
   applyCamera();
   refreshDieState();
 }
@@ -1005,6 +1070,11 @@ function init() {
       ev.preventDefault();
       startRoll();
     }
+  });
+  // A caixa inteira é área de clique: alvo grande, difícil errar.
+  el.dieTray.addEventListener('click', (ev) => {
+    if (ev.target === el.die) return; // já tratado pelo próprio dado
+    startRoll();
   });
   el.btnRules.addEventListener('click', () => { el.rulesModal.hidden = false; });
   el.btnRulesClose.addEventListener('click', () => { el.rulesModal.hidden = true; });

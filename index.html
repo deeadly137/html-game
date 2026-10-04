@@ -66,11 +66,6 @@
         <div id="pawns" class="pawns"></div>
         <div class="parallax px-fore" id="px-fore"></div>
       </div>
-
-      <!-- o dado é um cubo de 6 faces, lançado no mapa perto da peça da vez -->
-      <div id="die" class="die" role="button" tabindex="0" aria-label="Rolar o dado">
-        <div id="die-cube" class="die-cube"></div>
-      </div>
     </div>
 
     <!-- barra de status: quem é a vez e quantas casas -->
@@ -90,9 +85,17 @@
       </div>
     </header>
 
-    <!-- rodapé: fichas dos jogadores, baralhos e minimapa -->
+    <!-- rodapé: caixa do dado, fichas dos jogadores, baralhos e minimapa -->
     <footer class="dock">
-      <ul id="chips" class="chips"></ul>
+      <div class="dock-main">
+        <div class="dice-tray" id="dice-tray" aria-label="Caixa do dado">
+          <div id="die" class="die" role="button" tabindex="0" aria-label="Rolar o dado">
+            <div id="die-cube" class="die-cube"></div>
+          </div>
+          <span class="dice-tray-label" id="die-label">Rolar o dado</span>
+        </div>
+        <ul id="chips" class="chips"></ul>
+      </div>
 
       <div class="dock-side">
         <div id="decks" class="decks" aria-label="Baralhos"></div>

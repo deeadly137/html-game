@@ -124,28 +124,78 @@ test('GUI: os peões são desenhados, sem emoji e sem estereótipo', async () =>
 /* ------------------------------------------------------------------ */
 /* O dado no mapa                                                      */
 /* ------------------------------------------------------------------ */
-test('GUI: o dado é lançado NO MAPA, ao lado da peça da vez', async () => {
-  const { api, get, start } = await boot(2);
+test('GUI: o dado mora numa caixa e é lançado no mapa ao clicar', async () => {
+  const { api, state, get, start } = await boot(2);
   await start();
 
   const die = get('die');
-  assert.ok(die.style.left, 'o dado tem posição no mapa');
+  const caixa = get('dice-tray');
+
+  // O dado é um cubo de 6 faces, cada uma com a sua grade de pontos.
   const faces = get('die-cube').querySelectorAll('.die-face');
   assert.equal(faces.length, 6, 'o dado é um cubo de 6 faces');
-  assert.equal(die.dataset.face, '0', 'ainda não rolou');
-  // Cada face desenha a sua quantidade de pontos.
   assert.equal(faces[0].querySelectorAll('.pip').length, 9, 'cada face tem a grade de 9 posições');
+  assert.equal(die.dataset.face, '0', 'ainda não rolou');
 
-  const peao0 = get('pawns').querySelectorAll('.pawn')[0];
-  const dx = Math.abs(Number(die.style.left.replace('px', '')) - Number(peao0.style.left.replace('px', '')));
-  const dy = Math.abs(Number(die.style.top.replace('px', '')) - Number(peao0.style.top.replace('px', '')));
-  assert.ok(dx < 90 && dy < 190, 'o dado fica junto da peça, não num painel lateral');
+  // Em repouso, está na caixa (sem deslocamento) — sempre visível e clicável.
+  assert.ok(!die.style.transform, 'em repouso o dado está na caixa');
+  assert.equal(caixa.classList.contains('is-off'), false, 'a caixa está ativa na vez do jogador');
 
-  // Rolar muda a face do dado.
+  // Ao rolar, o dado voa para perto da peça e volta para a caixa.
+  api.uiConfig.instant = false; // o lançamento precisa da animação
+  api.uiConfig.dieTicks = 0;
+  api.uiConfig.stepMs = 1;
+  api.uiConfig.recallMs = 10;
   api.uiConfig.forcedRoll = 4;
+
   get('die').click();
-  await flush(40);
+  assert.ok(String(die.style.transform).includes('translate'), 'o dado é lançado no mapa');
+  assert.equal(die.classList.contains('thrown'), true, 'fica marcado como em voo');
+
+  await settle(state.rolling);
   assert.equal(die.dataset.face, '4', 'o dado mostra a face sorteada');
+
+  await flush(30); // o recolhimento é agendado ao fim do turno
+  assert.ok(!die.style.transform, 'o dado volta para a caixa');
+  assert.equal(die.dataset.face, '4', 'mostrando o último número jogado');
+});
+
+test('BUG: o dado não pode travar depois do primeiro turno', async () => {
+  const { api, state, get, start } = await boot(2);
+  await start();
+
+  const die = get('die');
+
+  // Joga 6 turnos alternando os jogadores: o dado precisa voltar a ficar
+  // disponível TODAS as vezes (era o bug: ficava is-off para sempre).
+  for (let turno = 0; turno < 6; turno += 1) {
+    assert.equal(die.classList.contains('is-off'), false, `turno ${turno + 1}: dado disponível`);
+    assert.equal(state.game.currentPlayerIndex, turno % 2, `turno ${turno + 1}: é a vez do jogador certo`);
+
+    api.uiConfig.forcedRoll = 2; // casa comum: sem pergunta nem carta
+    get('die').click();
+    await settle(state.rolling);
+    assert.equal(die.dataset.face, '2', `turno ${turno + 1}: face atualizada`);
+    await flush(5);
+  }
+});
+
+test('BUG: a partida começa com o peão enquadrado (não colado na borda)', async () => {
+  const { state, start } = await boot(2);
+  await start();
+
+  const cam = state.camera;
+  const peao = state.layout.houses[0].x;
+
+  // Com o respiro do mundo aplicado, a câmera não fica presa no zero:
+  // o peão aparece a 38% da tela, como planejado.
+  assert.ok(peao > 400, `a casa da partida tem respiro à esquerda (x=${peao})`);
+  assert.ok(cam.targetX() > 0, 'a câmera não começa travada no limite esquerdo');
+  assert.equal(
+    Math.round(peao - cam.targetX()),
+    Math.round(cam.viewport * cam.ratio),
+    'o peão fica a 38% da tela, enquadrado',
+  );
 });
 
 /* ------------------------------------------------------------------ */

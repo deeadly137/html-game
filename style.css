@@ -519,16 +519,57 @@ button { font-family: inherit; }
 /* ================================================================== */
 /* DADO — lançado no mapa, perto da peça da vez                      */
 /* ================================================================== */
-.die {
+/* ---------- a caixa do dado (o dado mora aqui) ---------- */
+.dock-main { display: flex; align-items: flex-end; gap: 0.8rem; flex-wrap: wrap; }
+
+.dice-tray {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.5rem 0.7rem 0.35rem;
+  border-radius: 6px;
+  /* caixa de madeira com fundo rebaixado */
+  background: linear-gradient(180deg, #6b4a2c, #4a3120);
+  border: var(--line) solid var(--ink);
+  box-shadow: 3px 3px 0 var(--ink), inset 0 3px 10px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+.dice-tray:hover { filter: brightness(1.06); }
+.dice-tray.is-off { cursor: default; filter: grayscale(0.35) brightness(0.85); }
+.dice-tray::before {
+  /* o fundo feltro da caixa */
+  content: '';
   position: absolute;
-  width: 4.6rem;
-  height: 4.6rem;
+  left: 0.7rem; right: 0.7rem;
+  top: 0.5rem; bottom: 2.05rem;
+  border-radius: 4px;
+  background: #2f7d4f;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+.dice-tray-label {
+  font-family: var(--font-display);
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--paper);
+  white-space: nowrap;
+}
+
+.die {
+  position: relative;
+  width: 4rem;
+  height: 4rem;
   perspective: 800px;
   cursor: pointer;
-  z-index: 6;
+  z-index: 3;
   transition: opacity 0.25s ease;
 }
-.die.is-off { opacity: 0; pointer-events: none; }
+.die.is-off { opacity: 0.55; pointer-events: none; }
+/* em voo: acima de tudo, e sem receber cliques */
+.die.thrown { z-index: 60; }
 
 /* o cubo: as 6 faces ficam em volta e o conjunto gira até mostrar o resultado */
 .die-cube {
